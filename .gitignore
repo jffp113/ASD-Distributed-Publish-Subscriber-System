@@ -28,7 +28,7 @@ target/*
 # IDE files
 .DS_Store
 .idea/*
-Project.iml
+*.iml
 .project
 .metadata
 bin/**
