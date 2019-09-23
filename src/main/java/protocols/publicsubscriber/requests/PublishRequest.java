@@ -3,7 +3,7 @@ package protocols.publicsubscriber.requests;
 import babel.requestreply.ProtocolRequest;
 
 public class PublishRequest extends ProtocolRequest {
-    public static short REQUEST_ID = 1;
+    public static short REQUEST_ID = 1000;
     private String topic;
     private String message;
 

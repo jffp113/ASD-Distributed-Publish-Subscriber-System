@@ -23,7 +23,7 @@ import java.util.Properties;
 //TODO implement this protocol with the correspondent methods
 public class PublishSubscriber extends GenericProtocol implements INotificationConsumer {
 
-    public final static short PROTOCOL_ID = 100;
+    public final static short PROTOCOL_ID = 1000;
     public final static String PROTOCOL_NAME = "Publish/Subscriber";
     public static final int INITIAL_CAPACITY = 100;
     private Map<String, Boolean> topics;
@@ -39,7 +39,6 @@ public class PublishSubscriber extends GenericProtocol implements INotificationC
         registerRequestHandler(SubscribeRequest.REQUEST_ID,uponSubscribeRequest);
 
         registerNotificationHandler(BCastDeliver.NOTIFICATION_ID,uponBCastDeliver);
-
     }
 
     @Override

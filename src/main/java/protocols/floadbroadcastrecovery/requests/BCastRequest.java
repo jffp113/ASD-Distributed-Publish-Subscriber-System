@@ -22,4 +22,9 @@ public class BCastRequest extends ProtocolRequest {
     public String getTopic() {
         return topic;
     }
+
+    public byte[] getPayload(){
+        return (topic.length()+ "|" + message.length() + "|" + topic + message).getBytes();
+
+    }
 }

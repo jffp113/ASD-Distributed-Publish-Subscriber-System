@@ -75,7 +75,6 @@ public class GossipBCast extends GenericProtocol {
             BCastRequest req = (BCastRequest) r;
             BCastProtocolMessage message = new BCastProtocolMessage();
             message.setPayload(req.getPayload());
-
             //Deliver message
             delivered.add(message.getMessageId());
             BCastDeliver deliver = new BCastDeliver(req.getPayload());

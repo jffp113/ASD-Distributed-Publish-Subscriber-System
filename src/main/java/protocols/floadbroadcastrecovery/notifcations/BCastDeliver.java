@@ -2,10 +2,15 @@ package protocols.floadbroadcastrecovery.notifcations;
 
 import babel.notification.ProtocolNotification;
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 public class BCastDeliver extends ProtocolNotification {
 
     public static final short NOTIFICATION_ID = 201;
     public static final String NOTIFICATION_NAME = "BcastDeliver";
+    public static final String REGEX = "(/d+)|(/d+)|(*)";
+    private Pattern regex = Pattern.compile(REGEX);
 
     private String message;
     private String topic;
@@ -17,6 +22,25 @@ public class BCastDeliver extends ProtocolNotification {
 
     }
 
+    public BCastDeliver(byte[] payload) {
+        super(BCastDeliver.NOTIFICATION_ID, NOTIFICATION_NAME);
+        String payloadAsAString = new String(payload);
+        Matcher m = regex.matcher(payloadAsAString);
+        int topicLength = -1;
+        int messageLength = -1;
+        String all = "";
+
+        if (m.find( )) {
+            topicLength = Integer.parseInt(m.group(1));
+            messageLength = Integer.parseInt(m.group(2));
+            all = m.group(3);
+        }
+
+        this.message =  all.substring(0,topicLength);
+        this.topic= all.substring(topicLength + 1);;
+
+    }
+
     public String getMessage() {
         return message;
     }
@@ -24,4 +48,6 @@ public class BCastDeliver extends ProtocolNotification {
     public String getTopic() {
         return topic;
     }
+
+
 }
