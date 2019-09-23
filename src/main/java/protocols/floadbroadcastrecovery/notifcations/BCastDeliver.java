@@ -1,4 +1,4 @@
-package protocols.floadbroadcastrecovery.notifications;
+package protocols.floadbroadcastrecovery.notifcations;
 
 import babel.notification.ProtocolNotification;
 
@@ -10,7 +10,7 @@ public class BCastDeliver extends ProtocolNotification {
     private byte[] message;
 
     public BCastDeliver(byte[] message) {
-        super(BCastDeliver.NOTIFICATION_ID, BCastDeliver.NOTIFICATION_NAME);
+        super(BCastDeliver.NOTIFICATION_ID, NOTIFICATION_NAME);
         if(message != null) {
             this.message = new byte[message.length];
             System.arraycopy(message, 0, this.message, 0, message.length);

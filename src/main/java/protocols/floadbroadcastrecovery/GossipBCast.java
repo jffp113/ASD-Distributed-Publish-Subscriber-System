@@ -13,7 +13,7 @@ import babel.requestreply.ProtocolRequest;
 import network.Host;
 import network.INetwork;
 import protocols.floadbroadcastrecovery.messages.BCastProtocolMessage;
-import protocols.floadbroadcastrecovery.notifications.BCastDeliver;
+import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.partialmembership.GlobalMembership;
 import protocols.partialmembership.requests.GetSampleReply;
