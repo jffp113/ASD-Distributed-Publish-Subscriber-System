@@ -1,11 +1,6 @@
 package protocols.partialmembership;
 
-import babel.demos.protocols.globalmembership.messages.GossipProtocolMessage;
-import babel.demos.protocols.globalmembership.notifications.GlobalMembershipNotification;
-import babel.demos.protocols.globalmembership.requests.GetSampleReply;
-import babel.demos.protocols.globalmembership.requests.GetSampleRequest;
-import babel.demos.protocols.globalmembership.timers.EchoProtocolTimer;
-import babel.demos.protocols.globalmembership.timers.GossipProtocolTimer;
+
 import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.exceptions.HandlerRegistrationException;
 import babel.handlers.ProtocolMessageHandler;
@@ -20,6 +15,12 @@ import network.INetwork;
 import network.INodeListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import protocols.partialmembership.messages.GossipProtocolMessage;
+import protocols.partialmembership.notifications.GlobalMembershipNotification;
+import protocols.partialmembership.requests.GetSampleReply;
+import protocols.partialmembership.requests.GetSampleRequest;
+import protocols.partialmembership.timers.EchoProtocolTimer;
+import protocols.partialmembership.timers.GossipProtocolTimer;
 
 import java.net.InetAddress;
 import java.util.*;
