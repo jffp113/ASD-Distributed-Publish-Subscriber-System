@@ -7,19 +7,21 @@ public class BCastDeliver extends ProtocolNotification {
     public static final short NOTIFICATION_ID = 201;
     public static final String NOTIFICATION_NAME = "BcastDeliver";
 
-    private byte[] message;
+    private String message;
+    private String topic;
 
-    public BCastDeliver(byte[] message) {
+    public BCastDeliver(String message, String topic) {
         super(BCastDeliver.NOTIFICATION_ID, NOTIFICATION_NAME);
-        if(message != null) {
-            this.message = new byte[message.length];
-            System.arraycopy(message, 0, this.message, 0, message.length);
-        } else {
-            this.message = new byte[0];
-        }
+        this.message=message;
+        this.topic=topic;
+
     }
 
-    public byte[] getMessage() {
+    public String getMessage() {
         return message;
+    }
+
+    public String getTopic() {
+        return topic;
     }
 }
