@@ -5,6 +5,7 @@ import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import network.INetwork;
 import protocols.floadbroadcastrecovery.GossipBCast;
+import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.partialmembership.GlobalMembership;
 import protocols.publicsubscriber.PublishSubscriber;
 import protocols.publicsubscriber.requests.PublishRequest;
@@ -27,6 +28,12 @@ public class Client implements INotificationConsumer {
         Properties prop=  babel.loadConfig(NETWORK_CONFIG_PROPERTIES, args);
         INetwork net = babel.getNetworkInstance();
 
+        this.global = new GlobalMembership(net);
+        this.global.init(prop);
+        babel.registerProtocol(global);
+
+
+
         this.pubSub = new PublishSubscriber(net);
         this.pubSub.init(prop);
         babel.registerProtocol(pubSub);
@@ -34,10 +41,8 @@ public class Client implements INotificationConsumer {
         this.bcast = new GossipBCast(net);
         this.bcast.init(prop);
         babel.registerProtocol(bcast);
+        this.bcast.subscribeNotification(BCastDeliver.NOTIFICATION_ID,pubSub);
 
-        this.global = new GlobalMembership(net);
-        this.global.init(prop);
-        babel.registerProtocol(global);
 
 
         for (Short s : pubSub.producedNotifications().values()) {

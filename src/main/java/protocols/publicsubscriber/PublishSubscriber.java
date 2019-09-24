@@ -4,6 +4,7 @@ import babel.exceptions.HandlerRegistrationException;
 import babel.handlers.ProtocolNotificationHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.notification.INotificationConsumer;
+import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
 import io.netty.buffer.ByteBuf;
 import network.INetwork;
@@ -29,7 +30,7 @@ public class PublishSubscriber extends GenericProtocol implements INotificationC
     public static final int INITIAL_CAPACITY = 100;
     private Map<String, Boolean> topics;
 
-    public PublishSubscriber(INetwork net) throws HandlerRegistrationException {
+    public PublishSubscriber(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
 
         // Notifications produced
@@ -39,7 +40,8 @@ public class PublishSubscriber extends GenericProtocol implements INotificationC
         registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
         registerRequestHandler(SubscribeRequest.REQUEST_ID,uponSubscribeRequest);
 
-        registerNotificationHandler(BCastDeliver.NOTIFICATION_ID,uponBCastDeliver);
+        //registerNotification(BCastDeliver.NOTIFICATION_ID,BCastDeliver.NOTIFICATION_NAME);
+        subscribeNotification(BCastDeliver.NOTIFICATION_ID,this);
     }
 
     @Override
@@ -75,7 +77,7 @@ public class PublishSubscriber extends GenericProtocol implements INotificationC
 
     };
 
-    private ProtocolNotificationHandler uponBCastDeliver = (bCastDeliver) -> {
+    public void deliverNotification (ProtocolNotification bCastDeliver){
         BCastDeliver bCastDel = (BCastDeliver) bCastDeliver;
         String topic = bCastDel.getTopic();
 
@@ -83,5 +85,5 @@ public class PublishSubscriber extends GenericProtocol implements INotificationC
             triggerNotification(new PBDeliver(bCastDel.getMessage(), topic));
         }
 
-    };
+    }
 }
