@@ -9,7 +9,7 @@ public class BCastDeliver extends ProtocolNotification {
 
     public static final short NOTIFICATION_ID = 201;
     public static final String NOTIFICATION_NAME = "BcastDeliver";
-    public static final String REGEX = "(/d+)|(/d+)|(*)";
+    public static final String REGEX = "^^(\\d+)\\|(\\d+)\\|(.*)";
     private Pattern regex = Pattern.compile(REGEX);
 
     private String message;

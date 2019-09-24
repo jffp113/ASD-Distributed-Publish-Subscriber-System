@@ -8,6 +8,7 @@ import babel.protocol.GenericProtocol;
 import io.netty.buffer.ByteBuf;
 import network.INetwork;
 import network.ISerializer;
+import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.publicsubscriber.messages.PBProtocolMessage;
@@ -65,8 +66,13 @@ public class PublishSubscriber extends GenericProtocol implements INotificationC
     private ProtocolRequestHandler uponPublishRequest = (publishRequest) -> {
         PublishRequest pbReq = (PublishRequest) publishRequest;
         BCastRequest bCastRequest = new BCastRequest(pbReq.getMessage(),pbReq.getTopic());
+        bCastRequest.setDestination(GossipBCast.PROTOCOL_ID);
+        try{
+            this.sendRequest(bCastRequest);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
 
-        this.deliverRequest(bCastRequest);
     };
 
     private ProtocolNotificationHandler uponBCastDeliver = (bCastDeliver) -> {

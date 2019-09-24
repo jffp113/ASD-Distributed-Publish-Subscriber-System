@@ -21,9 +21,11 @@ public class InteractiveClient {
             String[] input_array = input.split(SPACE);
             switch(input_array[0]){
                 case SUBSCRIBE:
+                    System.out.println("Subscribing: " + input_array[1]);
                     c.subscribe(input_array[1]);
                     break;
                 case UNSUBSCRIBE:
+                    System.out.println("Unsubscribing: " + input_array[1]);
                     c.unsubscribe(input_array[1]);
                     break;
                 case PUBLISH:
