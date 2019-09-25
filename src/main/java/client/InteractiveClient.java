@@ -16,6 +16,8 @@ public class InteractiveClient {
             "exit - shutdown the client.";
     public static final String SUBSCRIBE_TEXT = "Subscribing: %s\n";
     public static final String UNSUBSCRIBE_TEXT = "Unsubscribing: %s\n";
+    public static final String PUBLISH_TEXT = "Publishing in topic %s: %s\n";
+    public static final String INVALID_COMMAND = "Invalid command type help.";
     public static String EMPTY_STRING = "";
 
     public static void main(String[] args) throws Exception {
@@ -26,8 +28,8 @@ public class InteractiveClient {
             input = in.nextLine();
             String[] input_array = input.split(SPACE);
             String command = input_array[0],
-                    topic = input_array.length == 2 ? input_array[1] : EMPTY_STRING,
-                    message = input_array.length == 3 ? input_array[2] : EMPTY_STRING;
+                    topic = input_array.length >= 2 ? input_array[1] : EMPTY_STRING,
+                    message = input_array.length >= 3 ? input_array[2] : EMPTY_STRING;
             switch (command) {
                 case SUBSCRIBE:
                     System.out.printf(SUBSCRIBE_TEXT, topic);
@@ -38,11 +40,14 @@ public class InteractiveClient {
                     c.unsubscribe(topic);
                     break;
                 case PUBLISH:
+                    System.out.printf(PUBLISH_TEXT, topic, message);
                     c.publish(topic, message);
                     break;
                 case HELP:
                     System.out.println(HELP_TEXT);
                     break;
+                default:
+                    System.out.println(INVALID_COMMAND);
             }
         }
     }

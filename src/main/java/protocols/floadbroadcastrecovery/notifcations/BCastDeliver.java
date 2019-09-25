@@ -17,8 +17,8 @@ public class BCastDeliver extends ProtocolNotification {
 
     public BCastDeliver(String message, String topic) {
         super(BCastDeliver.NOTIFICATION_ID, NOTIFICATION_NAME);
-        this.message=message;
-        this.topic=topic;
+        this.message = message;
+        this.topic = topic;
 
     }
 
@@ -30,14 +30,14 @@ public class BCastDeliver extends ProtocolNotification {
         int messageLength = -1;
         String all = "";
 
-        if (m.find( )) {
+        if (m.find()) {
             topicLength = Integer.parseInt(m.group(1));
             messageLength = Integer.parseInt(m.group(2));
             all = m.group(3);
         }
 
-        this.message =  all.substring(0,topicLength);
-        this.topic= all.substring(topicLength);
+        this.topic = all.substring(0, topicLength);
+        this.message = all.substring(topicLength);
 
     }
 
