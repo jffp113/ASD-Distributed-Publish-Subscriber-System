@@ -1,4 +1,4 @@
-package protocols.publicsubscriber.notifications;
+package protocols.publishsubscribe.notifications;
 
 import babel.notification.ProtocolNotification;
 

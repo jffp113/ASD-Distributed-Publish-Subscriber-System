@@ -1,4 +1,4 @@
-package protocols.publicsubscriber.requests;
+package protocols.publishsubscribe.requests;
 
 import babel.requestreply.ProtocolRequest;
 

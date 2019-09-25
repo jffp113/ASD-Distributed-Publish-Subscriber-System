@@ -1,36 +1,30 @@
-package protocols.publicsubscriber;
+package protocols.publishsubscribe;
 
-import babel.exceptions.HandlerRegistrationException;
-import babel.handlers.ProtocolNotificationHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
-import io.netty.buffer.ByteBuf;
 import network.INetwork;
-import network.ISerializer;
 import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
-import protocols.publicsubscriber.messages.PBProtocolMessage;
-import protocols.publicsubscriber.requests.PublishRequest;
-import protocols.publicsubscriber.requests.SubscribeRequest;
-import protocols.publicsubscriber.notifications.PBDeliver;
+import protocols.publishsubscribe.notifications.PBDeliver;
+import protocols.publishsubscribe.requests.PublishRequest;
+import protocols.publishsubscribe.requests.SubscribeRequest;
 
-import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
 //TODO implement this protocol with the correspondent methods
-public class PublishSubscriber extends GenericProtocol implements INotificationConsumer {
+public class PublishSubscribe extends GenericProtocol implements INotificationConsumer {
 
     public final static short PROTOCOL_ID = 1000;
     public final static String PROTOCOL_NAME = "Publish/Subscriber";
     public static final int INITIAL_CAPACITY = 100;
     private Map<String, Boolean> topics;
 
-    public PublishSubscriber(INetwork net) throws Exception {
+    public PublishSubscribe(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
 
         // Notifications produced

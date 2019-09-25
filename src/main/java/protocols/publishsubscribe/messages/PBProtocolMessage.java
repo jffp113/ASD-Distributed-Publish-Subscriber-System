@@ -1,15 +1,10 @@
-package protocols.publicsubscriber.messages;
+package protocols.publishsubscribe.messages;
 
 import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
-import network.Host;
 import network.ISerializer;
-import protocols.partialmembership.messages.GossipProtocolMessage;
 
 import java.net.UnknownHostException;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.UUID;
 
 public class PBProtocolMessage extends ProtocolMessage {
