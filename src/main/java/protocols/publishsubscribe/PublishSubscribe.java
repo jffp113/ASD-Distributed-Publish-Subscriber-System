@@ -8,7 +8,7 @@ import network.INetwork;
 import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
-import protocols.publishsubscribe.notifications.PSDeliver;
+import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
 import protocols.publishsubscribe.requests.SubscribeRequest;
 
@@ -65,7 +65,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
 
         // Notifications produced
-        registerNotification(PSDeliver.NOTIFICATION_ID, PSDeliver.NOTIFICATION_NAME);
+        registerNotification(PBDeliver.NOTIFICATION_ID, PBDeliver.NOTIFICATION_NAME);
 
         // Requests
         registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
@@ -82,7 +82,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         String topic = bcDeliver.getTopic();
 
         if (this.topics.containsKey(topic)) {
-            triggerNotification(new PSDeliver(bcDeliver.getMessage(), topic));
+            triggerNotification(new PBDeliver(bcDeliver.getMessage(), topic));
         }
     }
 }

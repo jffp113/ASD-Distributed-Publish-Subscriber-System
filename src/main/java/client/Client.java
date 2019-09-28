@@ -8,7 +8,7 @@ import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.partialmembership.GlobalMembership;
 import protocols.publishsubscribe.PublishSubscribe;
-import protocols.publishsubscribe.notifications.PSDeliver;
+import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
 import protocols.publishsubscribe.requests.SubscribeRequest;
 
@@ -38,7 +38,7 @@ public class Client implements INotificationConsumer {
         babel.registerProtocol(bCast);
 
         bCast.subscribeNotification(BCastDeliver.NOTIFICATION_ID, pubSub);
-        pubSub.subscribeNotification(PSDeliver.NOTIFICATION_ID, this);
+        pubSub.subscribeNotification(PBDeliver.NOTIFICATION_ID, this);
 
         babel.start();
     }
@@ -76,7 +76,7 @@ public class Client implements INotificationConsumer {
 
     @Override
     public void deliverNotification(ProtocolNotification protocolNotification) {
-        PSDeliver psDeliver = (PSDeliver) protocolNotification;
-        System.out.printf(NOTIFICATION_FORMAT, psDeliver.getTopic(), psDeliver.getMessage());
+        PBDeliver pbDeliver = (PBDeliver) protocolNotification;
+        System.out.printf(NOTIFICATION_FORMAT, pbDeliver.getTopic(), pbDeliver.getMessage());
     }
 }
