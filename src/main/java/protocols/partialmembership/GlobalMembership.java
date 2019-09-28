@@ -83,7 +83,7 @@ public class GlobalMembership extends GenericProtocol implements INodeListener {
         @Override
         public void receive(ProtocolMessage msg) {
             Set<Host> sample = ((GossipProtocolMessage) msg).getSample();
-            sample.forEach(s-> addNetworkPeer(s));
+            sample.forEach(s -> addNetworkPeer(s));
         }
     };
 
@@ -122,7 +122,7 @@ public class GlobalMembership extends GenericProtocol implements INodeListener {
             //Compute answer
             Random rand = new Random();
             List<Host> toSend = new ArrayList<>(peers);
-            while(toSend.size() > req.getFanout()) {
+            while (toSend.size() > req.getFanout()) {
                 toSend.remove(rand.nextInt(toSend.size()));
             }
 
