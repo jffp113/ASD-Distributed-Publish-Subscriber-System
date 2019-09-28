@@ -16,6 +16,7 @@ import protocols.floadbroadcastrecovery.messages.BCastProtocolMessage;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.partialmembership.GlobalMembership;
+import protocols.partialmembership.HyParView;
 import protocols.partialmembership.requests.GetSampleReply;
 import protocols.partialmembership.requests.GetSampleRequest;
 
@@ -82,7 +83,7 @@ public class GossipBCast extends GenericProtocol {
 
             //Make request for peers (to the membership)
             GetSampleRequest request = new GetSampleRequest(fanout, message.getMessageId());
-            request.setDestination(GlobalMembership.PROTOCOL_ID);
+            request.setDestination(HyParView.PROTOCOL_ID);
             pending.put(message.getMessageId(), message);
             try {
                 sendRequest(request);
@@ -120,7 +121,7 @@ public class GossipBCast extends GenericProtocol {
 
                 //Create Request for peers (in the membership)
                 GetSampleRequest request = new GetSampleRequest(fanout, msg.getMessageId());
-                request.setDestination(GlobalMembership.PROTOCOL_ID);
+                request.setDestination(HyParView.PROTOCOL_ID);
                 pending.put(msg.getMessageId(), msg);
                 try {
                     sendRequest(request);

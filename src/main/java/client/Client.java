@@ -6,7 +6,7 @@ import babel.notification.ProtocolNotification;
 import network.INetwork;
 import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
-import protocols.partialmembership.GlobalMembership;
+import protocols.partialmembership.HyParView;
 import protocols.publishsubscribe.PublishSubscribe;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
@@ -25,9 +25,9 @@ public class Client implements INotificationConsumer {
         Properties prop = babel.loadConfig(NETWORK_CONFIG_PROPERTIES, args);
         INetwork net = babel.getNetworkInstance();
 
-        GlobalMembership global = new GlobalMembership(net);
-        global.init(prop);
-        babel.registerProtocol(global);
+        HyParView hyParView = new HyParView(net);
+        hyParView.init(prop);
+        babel.registerProtocol(hyParView);
 
         this.pubSub = new PublishSubscribe(net);
         this.pubSub.init(prop);

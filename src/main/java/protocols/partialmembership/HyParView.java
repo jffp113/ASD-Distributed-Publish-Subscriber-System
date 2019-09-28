@@ -1,4 +1,4 @@
-package protocols.publishsubscribe;
+package protocols.partialmembership;
 
 import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.handlers.ProtocolMessageHandler;
@@ -11,9 +11,11 @@ import network.INetwork;
 import network.INodeListener;
 import protocols.partialmembership.requests.GetSampleReply;
 import protocols.partialmembership.requests.GetSampleRequest;
-import protocols.publishsubscribe.messages.ForwardJoinMessage;
-import protocols.publishsubscribe.messages.JoinMessage;
+import protocols.partialmembership.messages.ForwardJoinMessage;
+import protocols.partialmembership.messages.JoinMessage;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.Properties;
 import java.util.Random;
 import java.util.TreeSet;
@@ -21,19 +23,25 @@ import java.util.UUID;
 
 public class HyParView extends GenericProtocol implements INodeListener {
 
-    public static final short PROTO_ID = 1;
+
+    public static final short PROTOCOL_ID = 1;
     public static final String ALG_NAME = "HyParView";
-    private static final int LOG_N_PLUS_C = 10;
+
+    public static final String ACTIVE_RANDOM_WALK_LENGTH = "activeRandom";
+    public static final String PASSIVE_RANDOM_WALK_LENGTH = "passiveRandom";
+    public static final String PASSIVE_VIEW_CONSTANT = "passiveViewConstant";
+    public static final String ACTIVE_VIEW_SIZE = "activeViewSize";
+
+    private int LOG_N_PLUS_C = 10;
     private TreeSet<Host> activeView;
     private TreeSet<Host> passiveView;
-    public int k, c, arwl, prwl;
+    public int k,  arwl, prwl;
 
     public HyParView(INetwork net) throws Exception {
-        super(ALG_NAME, PROTO_ID, net);
+        super(ALG_NAME, PROTOCOL_ID, net);
 
         registerMessageHandler(JoinMessage.MSG_CODE, uponReceiveJoin, JoinMessage.serializer);
         registerMessageHandler(ForwardJoinMessage.MSG_CODE, uponReceiveForwardJoin, ForwardJoinMessage.serializer);
-
         registerRequestHandler(GetSampleRequest.REQUEST_ID, uponGetMembershipRequest);
 
     }
@@ -43,8 +51,18 @@ public class HyParView extends GenericProtocol implements INodeListener {
         this.activeView = new TreeSet<>();
         this.passiveView = new TreeSet<>();
 
-        //TODO configurar o properties para ir buscar o contact
-        addNodeToActiveView(null);
+        LOG_N_PLUS_C = Integer.parseInt(properties.getProperty(ACTIVE_VIEW_SIZE));
+        k = Integer.parseInt(properties.getProperty(PASSIVE_VIEW_CONSTANT));
+        arwl = Integer.parseInt(properties.getProperty(ACTIVE_RANDOM_WALK_LENGTH));
+        prwl = Integer.parseInt(properties.getProperty(PASSIVE_RANDOM_WALK_LENGTH));
+        String[] contact = properties.getProperty("Contact").split(":");
+        Host host = null;
+        try {
+            host = new Host(InetAddress.getByName(contact[0]),Integer.parseInt(contact[1]));
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        addNodeToActiveView(host);
     }
 
 
@@ -88,7 +106,9 @@ public class HyParView extends GenericProtocol implements INodeListener {
         @Override
         public void uponRequest(ProtocolRequest protocolRequest) {
             // TODO depois ter atencao ao fanout
-            GetSampleReply sampleReply = new GetSampleReply(UUID.randomUUID(), activeView);
+
+            GetSampleReply sampleReply = new GetSampleReply(((GetSampleRequest) protocolRequest).getIdentifier(),
+                    activeView);
             sampleReply.invertDestination(protocolRequest);
             try {
                 sendReply(sampleReply);

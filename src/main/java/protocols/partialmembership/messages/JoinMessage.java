@@ -1,4 +1,4 @@
-package protocols.publishsubscribe.messages;
+package protocols.partialmembership.messages;
 
 import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
