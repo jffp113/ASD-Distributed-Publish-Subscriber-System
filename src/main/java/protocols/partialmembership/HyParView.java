@@ -3,23 +3,26 @@ package protocols.partialmembership;
 import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.handlers.ProtocolMessageHandler;
 import babel.handlers.ProtocolRequestHandler;
+import babel.handlers.ProtocolTimerHandler;
 import babel.protocol.GenericProtocol;
 import babel.protocol.event.ProtocolMessage;
 import babel.requestreply.ProtocolRequest;
+import babel.timer.ProtocolTimer;
 import network.Host;
 import network.INetwork;
 import network.INodeListener;
-import protocols.partialmembership.requests.GetSampleReply;
-import protocols.partialmembership.requests.GetSampleRequest;
+import org.apache.logging.log4j.core.util.Integers;
 import protocols.partialmembership.messages.ForwardJoinMessage;
 import protocols.partialmembership.messages.JoinMessage;
+import protocols.partialmembership.messages.ShuffleMessage;
+import protocols.partialmembership.messages.ShuffleReplyMessage;
+import protocols.partialmembership.requests.GetSampleReply;
+import protocols.partialmembership.requests.GetSampleRequest;
+import protocols.partialmembership.timers.ShuffleProtocolTimer;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Properties;
-import java.util.Random;
-import java.util.TreeSet;
-import java.util.UUID;
+import java.util.*;
 
 public class HyParView extends GenericProtocol implements INodeListener {
 
@@ -31,54 +34,50 @@ public class HyParView extends GenericProtocol implements INodeListener {
     public static final String PASSIVE_RANDOM_WALK_LENGTH = "passiveRandom";
     public static final String PASSIVE_VIEW_CONSTANT = "passiveViewConstant";
     public static final String ACTIVE_VIEW_SIZE = "activeViewSize";
+    public static final String SHUFFLE_INIT = "shuffleInit";
+    public static final String SHUFFLE_PERIOD = "shufflePeriod";
+    public static final String ELMS_TO_PICK_AV = "elmsToPickAV";
+    public static final String ELMS_TO_PICK_PV = "elmsToPickPV";
 
     private int LOG_N_PLUS_C = 10;
     private TreeSet<Host> activeView;
     private TreeSet<Host> passiveView;
-    public int k,  arwl, prwl;
+    public int k, arwl, prwl, elmsToPickFromAV, elmsToPickFromPV;
+    private final ProtocolMessageHandler uponShuffle = new ProtocolMessageHandler() {
+        @Override
+        public void receive(ProtocolMessage protocolMessage) {
+            ShuffleMessage shuffleMessage = (ShuffleMessage) protocolMessage;
 
-    public HyParView(INetwork net) throws Exception {
-        super(ALG_NAME, PROTOCOL_ID, net);
+            int ttl = shuffleMessage.decTtl();
 
-        registerMessageHandler(JoinMessage.MSG_CODE, uponReceiveJoin, JoinMessage.serializer);
-        registerMessageHandler(ForwardJoinMessage.MSG_CODE, uponReceiveForwardJoin, ForwardJoinMessage.serializer);
-        registerRequestHandler(GetSampleRequest.REQUEST_ID, uponGetMembershipRequest);
-//
-//        registerTimerHandler((short)12,(protocolTimer)->{
-//            System.out.println("ACTIVE_VIEW");
-//            for(Host h : activeView){
-//                System.out.println(h);
-//            }
-//            System.out.println("PASSIVE_VIEW");
-//            for(Host h : passiveView){
-//                System.out.println(h);
-//            }
-//        });
-//
-//        setupPeriodicTimer()
+            if (ttl > 0 && activeView.size() > 1) {
+                Host h = selectRandomFromActiveView(shuffleMessage.getSender());
+                sendMessage(shuffleMessage, h);
+            } else {
+                int elmsToPick = shuffleMessage.getPvSample().size() + shuffleMessage.getAvSample().size() + 1;
+                Set<Host> sample = pickSampleFromSet(passiveView, elmsToPick);
+                ShuffleReplyMessage replyMessage = new ShuffleReplyMessage(shuffleMessage.getMid(), sample);
 
-    }
+                mergePassiveView(shuffleMessage.getAvSample(), shuffleMessage.getPvSample(), replyMessage.getNodes());
 
-    @Override
-    public void init(Properties properties) {
-        this.activeView = new TreeSet<>();
-        this.passiveView = new TreeSet<>();
-
-        LOG_N_PLUS_C = Integer.parseInt(properties.getProperty(ACTIVE_VIEW_SIZE));
-        k = Integer.parseInt(properties.getProperty(PASSIVE_VIEW_CONSTANT));
-        arwl = Integer.parseInt(properties.getProperty(ACTIVE_RANDOM_WALK_LENGTH));
-        prwl = Integer.parseInt(properties.getProperty(PASSIVE_RANDOM_WALK_LENGTH));
-        String[] contact = properties.getProperty("Contact").split(":");
-        Host host = null;
-        try {
-            host = new Host(InetAddress.getByName(contact[0]),Integer.parseInt(contact[1]));
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
+                sendMessage(replyMessage, shuffleMessage.getSender());
+            }
         }
-        addNodeToActiveView(host);
-        sendMessage(new JoinMessage(myself),host);
+    };
+    private HashMap<UUID, ShuffleMessage> msgsSent;
+    private final ProtocolTimerHandler uponShuffleTimer = new ProtocolTimerHandler() {
+        @Override
+        public void uponTimer(ProtocolTimer protocolTimer) {
+            Set<Host> avSample = pickSampleFromSet(activeView, elmsToPickFromAV);
+            Set<Host> pvSample = pickSampleFromSet(passiveView, elmsToPickFromPV);
 
-    }
+            Host neighToShuffle = selectRandomFromActiveView(myself);
+
+            ShuffleMessage msg = new ShuffleMessage(avSample, pvSample, myself, arwl);
+            msgsSent.put(msg.getMid(), msg);
+            sendMessage(msg, neighToShuffle);
+        }
+    };
 
 
     private final ProtocolMessageHandler uponReceiveJoin = new ProtocolMessageHandler() {
@@ -132,6 +131,57 @@ public class HyParView extends GenericProtocol implements INodeListener {
             }
         }
     };
+    private final ProtocolMessageHandler uponShuffleReply = new ProtocolMessageHandler() {
+        @Override
+        public void receive(ProtocolMessage protocolMessage) {
+            ShuffleReplyMessage shuffleReplyMessage = (ShuffleReplyMessage) protocolMessage;
+            ShuffleMessage shuffleMessage = msgsSent.remove(shuffleReplyMessage.getMid());
+
+            Set<Host> sentNodes = new HashSet<>(shuffleMessage.getAvSample());
+            sentNodes.addAll(shuffleMessage.getPvSample());
+            mergePassiveView(shuffleReplyMessage.getNodes(), shuffleReplyMessage.getNodes(), sentNodes);
+        }
+    };
+
+    public HyParView(INetwork net) throws Exception {
+        super(ALG_NAME, PROTOCOL_ID, net);
+
+        registerMessageHandler(JoinMessage.MSG_CODE, uponReceiveJoin, JoinMessage.serializer);
+        registerMessageHandler(ForwardJoinMessage.MSG_CODE, uponReceiveForwardJoin, ForwardJoinMessage.serializer);
+        registerRequestHandler(GetSampleRequest.REQUEST_ID, uponGetMembershipRequest);
+        registerMessageHandler(ShuffleMessage.MSG_CODE, uponShuffle, ShuffleMessage.serializer);
+        registerMessageHandler(ShuffleMessage.MSG_CODE, uponShuffleReply, ShuffleReplyMessage.serializer);
+
+        registerTimerHandler(ShuffleProtocolTimer.TIMERCODE, uponShuffleTimer);
+    }
+
+    @Override
+    public void init(Properties properties) {
+        this.activeView = new TreeSet<>();
+        this.passiveView = new TreeSet<>();
+        this.msgsSent = new HashMap<>();
+
+        long shuffleInit = Long.parseLong(properties.getProperty(SHUFFLE_INIT));
+        long shufflePeriod = Long.parseLong(properties.getProperty(SHUFFLE_PERIOD));
+        LOG_N_PLUS_C = Integer.parseInt(properties.getProperty(ACTIVE_VIEW_SIZE));
+        k = Integer.parseInt(properties.getProperty(PASSIVE_VIEW_CONSTANT));
+        arwl = Integer.parseInt(properties.getProperty(ACTIVE_RANDOM_WALK_LENGTH));
+        prwl = Integer.parseInt(properties.getProperty(PASSIVE_RANDOM_WALK_LENGTH));
+        elmsToPickFromAV = Integer.parseInt(properties.getProperty(ELMS_TO_PICK_AV));
+        elmsToPickFromPV = Integers.parseInt(properties.getProperty(ELMS_TO_PICK_PV));
+        String[] contact = properties.getProperty("Contact").split(":");
+
+        setupPeriodicTimer(new ShuffleProtocolTimer(), shuffleInit, shufflePeriod);
+        Host host = null;
+        try {
+            host = new Host(InetAddress.getByName(contact[0]), Integer.parseInt(contact[1]));
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        addNodeToActiveView(host);
+        sendMessage(new JoinMessage(myself), host);
+
+    }
 
     private void addNodeToActiveView(Host node) {
         if (node.compareTo(myself) != 0 && !isNodeInActiveView(node)) {
@@ -194,6 +244,46 @@ public class HyParView extends GenericProtocol implements INodeListener {
         return passiveView.contains(node);
     }
 
+    private Set<Host> pickSampleFromSet(Set<Host> setToPick, int elmsToPick) {
+        List<Host> sample = new ArrayList<>(setToPick);
+
+        Random r = new Random();
+
+        while (sample.size() > elmsToPick) {
+            sample.remove(r.nextInt(sample.size()));
+        }
+
+        return new HashSet<>(sample);
+    }
+
+    private void mergePassiveView(Set<Host> avToAdd, Set<Host> pvToAdd, Set<Host> sentNodes) {
+        List<Host> av = new ArrayList<>(avToAdd);
+        List<Host> pv = new ArrayList<>(pvToAdd);
+        av.remove(myself);
+        av.removeAll(activeView);
+        av.removeAll(passiveView);
+        pv.remove(myself);
+        pv.removeAll(activeView);
+        pv.removeAll(passiveView);
+
+        int nodesToAdd = av.size() + pv.size();
+        int maxPV = LOG_N_PLUS_C * k;
+
+        // Remove sent nodes of passive view
+        Iterator<Host> it = sentNodes.iterator();
+        while (maxPV - passiveView.size() < nodesToAdd){
+            if(!it.hasNext()) break;
+            passiveView.remove(it.next());
+        }
+
+        while (maxPV - passiveView.size() < nodesToAdd) {
+            dropRandomNodeFromPassiveView();
+        }
+
+        passiveView.addAll(av);
+        passiveView.addAll(pv);
+    }
+
     @Override
     public void nodeDown(Host host) {
         if (isNodeInActiveView(host)) {
@@ -234,5 +324,4 @@ public class HyParView extends GenericProtocol implements INodeListener {
         }
         return null;
     }
-
 }
