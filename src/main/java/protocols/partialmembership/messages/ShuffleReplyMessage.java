@@ -12,6 +12,7 @@ import java.util.UUID;
 
 public class ShuffleReplyMessage extends ProtocolMessage {
     public final static short MSG_CODE = 1002;
+
     public static final ISerializer<ShuffleReplyMessage> serializer = new ISerializer<ShuffleReplyMessage>() {
         @Override
         public void serialize(ShuffleReplyMessage shuffleReplyMessage, ByteBuf out) {
@@ -41,7 +42,7 @@ public class ShuffleReplyMessage extends ProtocolMessage {
         @Override
         public int serializedSize(ShuffleReplyMessage shuffleReplyMessage) {
             int hostSize = 6;
-            return 2*Long.BYTES + Short.BYTES + shuffleReplyMessage.nodes.size() * hostSize;
+            return 2 * Long.BYTES + Short.BYTES + shuffleReplyMessage.nodes.size() * hostSize;
         }
     };
     private UUID mid;
