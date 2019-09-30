@@ -43,6 +43,19 @@ public class HyParView extends GenericProtocol implements INodeListener {
         registerMessageHandler(JoinMessage.MSG_CODE, uponReceiveJoin, JoinMessage.serializer);
         registerMessageHandler(ForwardJoinMessage.MSG_CODE, uponReceiveForwardJoin, ForwardJoinMessage.serializer);
         registerRequestHandler(GetSampleRequest.REQUEST_ID, uponGetMembershipRequest);
+//
+//        registerTimerHandler((short)12,(protocolTimer)->{
+//            System.out.println("ACTIVE_VIEW");
+//            for(Host h : activeView){
+//                System.out.println(h);
+//            }
+//            System.out.println("PASSIVE_VIEW");
+//            for(Host h : passiveView){
+//                System.out.println(h);
+//            }
+//        });
+//
+//        setupPeriodicTimer()
 
     }
 
@@ -63,6 +76,8 @@ public class HyParView extends GenericProtocol implements INodeListener {
             e.printStackTrace();
         }
         addNodeToActiveView(host);
+        sendMessage(new JoinMessage(myself),host);
+
     }
 
 

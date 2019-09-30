@@ -6,6 +6,8 @@ base=10010
 ARRAY[INDEXNR]=value
 
 
+rm ./logs/*
+
 set -e
 
 while [ $counter -le 10 ]
