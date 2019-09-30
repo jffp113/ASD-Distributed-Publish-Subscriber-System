@@ -13,10 +13,10 @@ import java.util.UUID;
 public class ShuffleMessage extends ProtocolMessage {
     public final static short MSG_CODE = 1111;
 
-
     public static final ISerializer<ShuffleMessage> serializer = new ISerializer<ShuffleMessage>() {
         @Override
         public void serialize(ShuffleMessage shuffleRequest, ByteBuf out) {
+
             out.writeLong(shuffleRequest.mid.getMostSignificantBits());
             out.writeLong(shuffleRequest.mid.getLeastSignificantBits());
             out.writeInt(shuffleRequest.ttl);
@@ -37,10 +37,9 @@ public class ShuffleMessage extends ProtocolMessage {
         @Override
         public ShuffleMessage deserialize(ByteBuf in) throws UnknownHostException {
             UUID mid = new UUID(in.readLong(), in.readLong());
-
+            int ttl = in.readInt();
             short avSampleSize = in.readShort();
             short pvSampleSize = in.readShort();
-            int ttl = in.readInt();
 
             Set<Host> avSample = new HashSet<>();
             Set<Host> pvSample = new HashSet<>();
@@ -61,7 +60,7 @@ public class ShuffleMessage extends ProtocolMessage {
         @Override
         public int serializedSize(ShuffleMessage shuffleRequest) {
             Host sender = shuffleRequest.sender;
-            return 2*Long.BYTES + 2 * Short.BYTES + (shuffleRequest.pvSample.size() + shuffleRequest.avSample.size() + 1)
+            return 2 * Long.BYTES + 2 * Short.BYTES + (shuffleRequest.pvSample.size() + shuffleRequest.avSample.size() + 1)
                     * sender.serializedSize() + Integer.BYTES;
         }
     };
