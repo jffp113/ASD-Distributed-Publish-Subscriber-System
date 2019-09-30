@@ -42,7 +42,38 @@ public class HyParView extends GenericProtocol implements INodeListener {
     private int LOG_N_PLUS_C = 10;
     private TreeSet<Host> activeView;
     private TreeSet<Host> passiveView;
+    private HashMap<UUID, ShuffleMessage> msgsSent;
     public int k, arwl, prwl, elmsToPickFromAV, elmsToPickFromPV;
+
+
+    @Override
+    public void init(Properties properties) {
+        this.activeView = new TreeSet<>();
+        this.passiveView = new TreeSet<>();
+        this.msgsSent = new HashMap<>();
+
+        long shuffleInit = Long.parseLong(properties.getProperty(SHUFFLE_INIT));
+        long shufflePeriod = Long.parseLong(properties.getProperty(SHUFFLE_PERIOD));
+        LOG_N_PLUS_C = Integer.parseInt(properties.getProperty(ACTIVE_VIEW_SIZE));
+        k = Integer.parseInt(properties.getProperty(PASSIVE_VIEW_CONSTANT));
+        arwl = Integer.parseInt(properties.getProperty(ACTIVE_RANDOM_WALK_LENGTH));
+        prwl = Integer.parseInt(properties.getProperty(PASSIVE_RANDOM_WALK_LENGTH));
+        elmsToPickFromAV = Integer.parseInt(properties.getProperty(ELMS_TO_PICK_AV));
+        elmsToPickFromPV = Integers.parseInt(properties.getProperty(ELMS_TO_PICK_PV));
+        String[] contact = properties.getProperty("Contact").split(":");
+
+        setupPeriodicTimer(new ShuffleProtocolTimer(), shuffleInit, shufflePeriod);
+        Host host = null;
+        try {
+            host = new Host(InetAddress.getByName(contact[0]), Integer.parseInt(contact[1]));
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
+        addNodeToActiveView(host);
+        sendMessage(new JoinMessage(myself), host);
+
+    }
+
     private final ProtocolMessageHandler uponShuffle = new ProtocolMessageHandler() {
         @Override
         public void receive(ProtocolMessage protocolMessage) {
@@ -64,7 +95,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
             }
         }
     };
-    private HashMap<UUID, ShuffleMessage> msgsSent;
+
     private final ProtocolTimerHandler uponShuffleTimer = new ProtocolTimerHandler() {
         @Override
         public void uponTimer(ProtocolTimer protocolTimer) {
@@ -150,37 +181,9 @@ public class HyParView extends GenericProtocol implements INodeListener {
         registerMessageHandler(ForwardJoinMessage.MSG_CODE, uponReceiveForwardJoin, ForwardJoinMessage.serializer);
         registerRequestHandler(GetSampleRequest.REQUEST_ID, uponGetMembershipRequest);
         registerMessageHandler(ShuffleMessage.MSG_CODE, uponShuffle, ShuffleMessage.serializer);
-        registerMessageHandler(ShuffleMessage.MSG_CODE, uponShuffleReply, ShuffleReplyMessage.serializer);
+        registerMessageHandler(ShuffleReplyMessage.MSG_CODE, uponShuffleReply, ShuffleReplyMessage.serializer);
 
         registerTimerHandler(ShuffleProtocolTimer.TIMERCODE, uponShuffleTimer);
-    }
-
-    @Override
-    public void init(Properties properties) {
-        this.activeView = new TreeSet<>();
-        this.passiveView = new TreeSet<>();
-        this.msgsSent = new HashMap<>();
-
-        long shuffleInit = Long.parseLong(properties.getProperty(SHUFFLE_INIT));
-        long shufflePeriod = Long.parseLong(properties.getProperty(SHUFFLE_PERIOD));
-        LOG_N_PLUS_C = Integer.parseInt(properties.getProperty(ACTIVE_VIEW_SIZE));
-        k = Integer.parseInt(properties.getProperty(PASSIVE_VIEW_CONSTANT));
-        arwl = Integer.parseInt(properties.getProperty(ACTIVE_RANDOM_WALK_LENGTH));
-        prwl = Integer.parseInt(properties.getProperty(PASSIVE_RANDOM_WALK_LENGTH));
-        elmsToPickFromAV = Integer.parseInt(properties.getProperty(ELMS_TO_PICK_AV));
-        elmsToPickFromPV = Integers.parseInt(properties.getProperty(ELMS_TO_PICK_PV));
-        String[] contact = properties.getProperty("Contact").split(":");
-
-        setupPeriodicTimer(new ShuffleProtocolTimer(), shuffleInit, shufflePeriod);
-        Host host = null;
-        try {
-            host = new Host(InetAddress.getByName(contact[0]), Integer.parseInt(contact[1]));
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
-        addNodeToActiveView(host);
-        sendMessage(new JoinMessage(myself), host);
-
     }
 
     private void addNodeToActiveView(Host node) {
@@ -219,6 +222,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
     }
 
     private void dropRandomNodeFromActiveView() {
+        //FIXME
         Random r = new Random(System.currentTimeMillis());
         int index = r.nextInt() % LOG_N_PLUS_C;
         for (Host h : activeView) {
@@ -304,24 +308,9 @@ public class HyParView extends GenericProtocol implements INodeListener {
     }
 
     private Host selectRandomFromActiveView(Host unwantedHost) {
+        List<Host> lotto = new ArrayList<>(this.activeView);
         Random r = new Random(System.currentTimeMillis());
-        int index = r.nextInt() % LOG_N_PLUS_C;
-        Host prevHost = null;
-        for (Host h : activeView) {
-            index--;
-            if (index == 0) {
-                if (h.compareTo(unwantedHost) != 0)
-                    return h;
-                else {
-                    if (prevHost != null) {
-                        return prevHost;
-                    } else {
-                        index++;
-                    }
-                }
-            }
-            prevHost = h;
-        }
-        return null;
+        int index = Math.abs(r.nextInt() % Math.min(lotto.size(),LOG_N_PLUS_C));
+        return lotto.get(index);
     }
 }

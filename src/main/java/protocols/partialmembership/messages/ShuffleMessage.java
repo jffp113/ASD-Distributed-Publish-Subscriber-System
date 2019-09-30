@@ -11,7 +11,9 @@ import java.util.Set;
 import java.util.UUID;
 
 public class ShuffleMessage extends ProtocolMessage {
-    public final static short MSG_CODE = 1001;
+    public final static short MSG_CODE = 1111;
+
+
     public static final ISerializer<ShuffleMessage> serializer = new ISerializer<ShuffleMessage>() {
         @Override
         public void serialize(ShuffleMessage shuffleRequest, ByteBuf out) {
@@ -59,7 +61,7 @@ public class ShuffleMessage extends ProtocolMessage {
         @Override
         public int serializedSize(ShuffleMessage shuffleRequest) {
             Host sender = shuffleRequest.sender;
-            return 2 * Short.BYTES + (shuffleRequest.pvSample.size() + shuffleRequest.avSample.size() + 1)
+            return 2*Long.BYTES + 2 * Short.BYTES + (shuffleRequest.pvSample.size() + shuffleRequest.avSample.size() + 1)
                     * sender.serializedSize() + Integer.BYTES;
         }
     };

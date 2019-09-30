@@ -17,7 +17,7 @@ import java.util.Properties;
 public class Client implements INotificationConsumer {
 
     private static final String NETWORK_CONFIG_PROPERTIES = "src/network_config.properties";
-    private static final String NOTIFICATION_FORMAT = "received event: Topic: %s Message: %s\n";
+    private static final String NOTIFICATION_FORMAT = "received event at %d: Topic: %s Message: %s\n";
     private PublishSubscribe pubSub;
 
     public Client(String[] args) throws Exception {
@@ -77,6 +77,6 @@ public class Client implements INotificationConsumer {
     @Override
     public void deliverNotification(ProtocolNotification protocolNotification) {
         PBDeliver pbDeliver = (PBDeliver) protocolNotification;
-        System.out.printf(NOTIFICATION_FORMAT, pbDeliver.getTopic(), pbDeliver.getMessage());
+        System.out.printf(NOTIFICATION_FORMAT, System.currentTimeMillis() , pbDeliver.getTopic(), pbDeliver.getMessage());
     }
 }

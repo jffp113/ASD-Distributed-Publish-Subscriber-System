@@ -41,7 +41,7 @@ public class ShuffleReplyMessage extends ProtocolMessage {
         @Override
         public int serializedSize(ShuffleReplyMessage shuffleReplyMessage) {
             int hostSize = 6;
-            return Short.BYTES + shuffleReplyMessage.nodes.size() * hostSize;
+            return 2*Long.BYTES + Short.BYTES + shuffleReplyMessage.nodes.size() * hostSize;
         }
     };
     private UUID mid;
