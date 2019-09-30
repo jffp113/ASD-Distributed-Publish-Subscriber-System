@@ -25,7 +25,7 @@ import java.net.UnknownHostException;
 import java.util.*;
 
 public class HyParView extends GenericProtocol implements INodeListener {
-    
+
     public static final short PROTOCOL_ID = 1;
     public static final String ALG_NAME = "HyParView";
 
@@ -97,9 +97,14 @@ public class HyParView extends GenericProtocol implements INodeListener {
             } else {
                 int elmsToPick = shuffleMessage.getPvSample().size() + shuffleMessage.getAvSample().size() + 1;
                 Set<Host> sample = pickSampleFromSet(passiveView, elmsToPick);
+
                 ShuffleReplyMessage replyMessage = new ShuffleReplyMessage(shuffleMessage.getMid(), sample);
 
                 mergePassiveView(shuffleMessage.getAvSample(), shuffleMessage.getPvSample(), replyMessage.getNodes());
+
+                if(!activeView.contains(shuffleMessage.getSender())){
+                    addNetworkPeer(shuffleMessage.getSender());
+                }
 
                 sendMessage(replyMessage, shuffleMessage.getSender());
             }
@@ -181,6 +186,11 @@ public class HyParView extends GenericProtocol implements INodeListener {
             Set<Host> sentNodes = new HashSet<>(shuffleMessage.getAvSample());
             sentNodes.addAll(shuffleMessage.getPvSample());
             mergePassiveView(shuffleReplyMessage.getNodes(), shuffleReplyMessage.getNodes(), sentNodes);
+
+            if(!activeView.contains(shuffleReplyMessage.getFrom())){
+                removeNetworkPeer(shuffleReplyMessage.getFrom());
+            }
+
         }
     };
 
