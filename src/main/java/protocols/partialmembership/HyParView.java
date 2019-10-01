@@ -315,5 +315,5 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
         passiveView.addAll(samplesToAdd);
     }
-    
+
 }
