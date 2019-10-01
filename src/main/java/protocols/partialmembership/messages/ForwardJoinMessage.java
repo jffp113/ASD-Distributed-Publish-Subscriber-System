@@ -6,21 +6,14 @@ import network.Host;
 import network.ISerializer;
 
 import java.net.UnknownHostException;
-import java.util.UUID;
 
 public class ForwardJoinMessage extends ProtocolMessage {
     public final static short MSG_CODE = 1088;
-    private final Host joinerHost;
-    private final Host senderHost;
-    private int ttl;
-    private UUID mid;
-    private volatile int size = -1;
-
     public static final ISerializer<ForwardJoinMessage> serializer = new ISerializer<ForwardJoinMessage>() {
         @Override
         public void serialize(ForwardJoinMessage joinMessage, ByteBuf out) {
-            joinMessage.getJoinerHost().serialize(out);
-            joinMessage.getSenderHost().serialize(out);
+            joinMessage.getNewNode().serialize(out);
+            joinMessage.getSender().serialize(out);
             out.writeInt(joinMessage.getTtl());
         }
 
@@ -34,40 +27,38 @@ public class ForwardJoinMessage extends ProtocolMessage {
 
         @Override
         public int serializedSize(ForwardJoinMessage joinMessage) {
-            return joinMessage.getSenderHost().serializedSize() + joinMessage.getJoinerHost().serializedSize() + Integer.BYTES;
+            return joinMessage.getSender().serializedSize() + joinMessage.getNewNode().serializedSize() + Integer.BYTES;
         }
     };
+    private final Host newNode;
+    private int ttl;
+    private final Host sender;
 
-    public ForwardJoinMessage(Host joinerHost, Host senderHost, int ttl) {
+    public ForwardJoinMessage(Host newNode, Host sender, int ttl) {
         super(MSG_CODE);
-        this.mid = UUID.randomUUID();
-        this.joinerHost = joinerHost;
-        this.senderHost = senderHost;
+        this.newNode = newNode;
+        this.sender = sender;
         this.ttl = ttl;
     }
 
-    @Override
-    public String toString() {
-        return "PSProtocolMessage{" +
-                "joinerHost= " + joinerHost.toString() +
-                "senderHost= " + senderHost.toString() +
-                "ttl= " + ttl +
-                '}';
+    public Host getNewNode() {
+        return newNode;
     }
 
-    public Host getJoinerHost() {
-        return joinerHost;
-    }
-
-    public Host getSenderHost() {
-        return senderHost;
+    public Host getSender() {
+        return sender;
     }
 
     public int getTtl() {
         return ttl;
     }
 
-    public void setTtl(int ttl) {
-        this.ttl = ttl;
+    @Override
+    public String toString() {
+        return "PSProtocolMessage{" +
+                "newNode= " + newNode.toString() +
+                "sender= " + sender.toString() +
+                "ttl= " + ttl +
+                '}';
     }
 }

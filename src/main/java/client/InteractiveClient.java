@@ -23,6 +23,7 @@ public class InteractiveClient {
     public static void main(String[] args) throws Exception {
         Client c = new Client(args);
         Scanner in = new Scanner(System.in);
+        c.subscribe("a");
         String input = EMPTY_STRING;
         while (!input.equalsIgnoreCase(EXIT)) {
             input = in.nextLine();
