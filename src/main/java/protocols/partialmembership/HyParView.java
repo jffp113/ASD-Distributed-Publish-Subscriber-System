@@ -37,8 +37,8 @@ public class HyParView extends GenericProtocol implements INodeListener {
     private static final String ELMS_TO_PICK_PV = "elmsToPickPV";
     private static final String CONTACT = "Contact";
 
-    private TreeSet<Host> activeView;
-    private TreeSet<Host> passiveView;
+    private Set<Host> activeView;
+    private Set<Host> passiveView;
     private HashMap<UUID, ShuffleMessage> shuffleMessagesSent;
     private int logNPlusC, k, arwl, prwl, elmsToPickFromAV, elmsToPickFromPV;
 
@@ -73,18 +73,21 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
     @Override
     public void nodeDown(Host host) {
-        //  System.err.println("nó " + host + " foi abaixo!");
-        if (!activeView.contains(host)) {
+        if (activeView.contains(host)) {
             activeView.remove(host);
             removeNetworkPeer(host);
             addNodeToPassiveView(host);
+            Host toPromote = selectRandomFromView(passiveView,host);
+            addNodeToActiveView(toPromote);
         }
     }
 
     @Override
     public void nodeUp(Host host) {
-        //   System.err.println("nó " + host + " voltou a ficar online!");
-        addNodeToActiveView(host);
+        if (passiveView.contains(host)) {
+            addNodeToActiveView(host);
+            passiveView.remove(host);
+        }
     }
 
     @Override
@@ -184,8 +187,8 @@ public class HyParView extends GenericProtocol implements INodeListener {
         ShuffleReplyMessage shuffleReplyMessage = (ShuffleReplyMessage) protocolMessage;
         ShuffleMessage shuffleMessage = shuffleMessagesSent.remove(shuffleReplyMessage.getMid());
 
-        Set<Host> sentNodes = mergeSamples(shuffleMessage.getAvSample(),shuffleMessage.getPvSample());
-        mergeIntoPassiveView(shuffleReplyMessage.getNodes(),sentNodes);
+        Set<Host> sentNodes = mergeSamples(shuffleMessage.getAvSample(), shuffleMessage.getPvSample());
+        mergeIntoPassiveView(shuffleReplyMessage.getNodes(), sentNodes);
 
         if (!activeView.contains(shuffleReplyMessage.getFrom())) {
             removeNetworkPeer(shuffleReplyMessage.getFrom());
@@ -202,8 +205,8 @@ public class HyParView extends GenericProtocol implements INodeListener {
     }
 
     private void initStructures() {
-        this.activeView = new TreeSet<>();
-        this.passiveView = new TreeSet<>();
+        this.activeView = Collections.synchronizedSet(new TreeSet<>());
+        this.passiveView = Collections.synchronizedSet(new TreeSet<>());
         this.shuffleMessagesSent = new HashMap<>();
     }
 
@@ -230,6 +233,11 @@ public class HyParView extends GenericProtocol implements INodeListener {
             if (isFullActiveView()) {
                 dropRandomNodeFromActiveView();
             }
+
+            if(passiveView.contains(node)){
+                passiveView.remove(node);
+            }
+
             activeView.add(node);
             addNetworkPeer(node);
         }
@@ -277,7 +285,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
     }
 
     private boolean isFullActiveView() {
-        return activeView.size() == (logNPlusC - 1);
+        return activeView.size() == (logNPlusC);
     }
 
     private Set<Host> pickSampleFromSet(Set<Host> setToPick, int elmsToPick) {
