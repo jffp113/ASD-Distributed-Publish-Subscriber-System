@@ -23,7 +23,6 @@ public class InteractiveClient {
     public static void main(String[] args) throws Exception {
         Client c = new Client(args);
         Scanner in = new Scanner(System.in);
-        c.subscribe("a");
         String input = EMPTY_STRING;
         while (!input.equalsIgnoreCase(EXIT)) {
             input = in.nextLine();
@@ -41,8 +40,8 @@ public class InteractiveClient {
                     c.unsubscribe(topic);
                     break;
                 case PUBLISH:
-                    System.out.printf(PUBLISH_TEXT, topic, message);
-                    c.publish(topic, message);
+                    System.out.printf(PUBLISH_TEXT, topic, joinArray(input_array));
+                    c.publish(topic, joinArray(input_array));
                     break;
                 case HELP:
                     System.out.println(HELP_TEXT);
@@ -51,5 +50,19 @@ public class InteractiveClient {
                     System.out.println(INVALID_COMMAND);
             }
         }
+    }
+
+    private static String joinArray(String[] input_array){
+        StringBuffer buf = new StringBuffer();
+
+        buf.append(input_array[2]);
+
+        for(int i = 3; i < input_array.length; i++){
+            buf.append(" ");
+            buf.append(input_array[i]);
+        }
+
+
+        return buf.toString();
     }
 }
