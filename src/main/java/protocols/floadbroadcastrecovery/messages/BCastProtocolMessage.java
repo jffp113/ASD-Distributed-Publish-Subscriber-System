@@ -4,10 +4,11 @@ import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
 import network.ISerializer;
 
+import java.io.Serializable;
 import java.net.UnknownHostException;
 import java.util.UUID;
 
-public class BCastProtocolMessage extends ProtocolMessage {
+public class BCastProtocolMessage extends ProtocolMessage implements Serializable {
 
     public final static short MSG_CODE = 201;
 

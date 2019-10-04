@@ -4,10 +4,10 @@ import babel.timer.ProtocolTimer;
 
 public class PeriodicRebroadcastProtocolTimer extends ProtocolTimer {
 
-    public static final short TimerCode = 1020;
+    public static final short TIMER_CODE = 1020;
 
     public PeriodicRebroadcastProtocolTimer() {
-        super(PeriodicRebroadcastProtocolTimer.TimerCode);
+        super(PeriodicRebroadcastProtocolTimer.TIMER_CODE);
     }
 
     @Override

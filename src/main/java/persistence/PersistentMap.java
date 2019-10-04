@@ -1,4 +1,4 @@
-package precistante;
+package persistence;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
@@ -12,10 +12,11 @@ public class PersistentMap<K extends Serializable  , V extends Serializable> imp
     private Map<K,V> map;
     private ObjectOutputStream out;
     private File f;
+    private int maximumCapacity;
 
-    public PersistentMap(Map<K, V> map, String fileName) throws Exception {
+    public PersistentMap(Map<K, V> map, String fileName, int maximumCapacity) throws Exception {
         this.map = map;
-        f = new File(fileName);//todo
+        f = new File(fileName);
 
         if(!f.exists())
             f.createNewFile();
@@ -23,6 +24,7 @@ public class PersistentMap<K extends Serializable  , V extends Serializable> imp
             fillMap();
 
         this.out = new ObjectOutputStream(new FileOutputStream(f));
+        this.maximumCapacity=maximumCapacity;
     }
 
     private void fillMap() throws Exception {
@@ -65,6 +67,10 @@ public class PersistentMap<K extends Serializable  , V extends Serializable> imp
 
     @Override
     public V put(K key, V value) {
+        if(isFull()){
+            clear();
+        }
+
         Entry<K,V> entry = new MyEntry<>(key, value);
 
         try {
@@ -91,6 +97,9 @@ public class PersistentMap<K extends Serializable  , V extends Serializable> imp
         f.deleteOnExit();
         try {
             f.createNewFile();
+            out = new ObjectOutputStream(new FileOutputStream(f));
+            storeMap();
+            this.map.clear();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -109,5 +118,19 @@ public class PersistentMap<K extends Serializable  , V extends Serializable> imp
     @Override
     public Set<Entry<K, V>> entrySet() {
         return map.entrySet();
+    }
+
+    private boolean isFull(){
+        return map.size()==maximumCapacity;
+    }
+
+    private void storeMap(){
+        try {
+            for (Entry<K,V> entry : map.entrySet()) {
+                out.writeObject(entry);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

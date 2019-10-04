@@ -1,4 +1,4 @@
-package precistante;
+package persistence;
 
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
@@ -13,26 +13,28 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
     private Set<E> set;
     private ObjectOutputStream out;
     private File f;
+    private int maximumCapacity;
 
-    public PersistentSet(Set<E> set, String fileName) throws Exception {
+    public PersistentSet(Set<E> set, String fileName, int maximumCapacity) throws Exception {
         this.set = set;
-        f = new File(fileName);//todo
+        f = new File(fileName);
 
-        if(!f.exists())
+        if (!f.exists())
             f.createNewFile();
         else
             fillSet();
 
         this.out = new ObjectOutputStream(new FileOutputStream(f));
+        this.maximumCapacity = maximumCapacity;
     }
 
     private void fillSet() throws Exception {
         ObjectInputStream in = new ObjectInputStream(new FileInputStream(f));
 
-        try{
-            while(true)
-                set.add((E)in.readObject());
-        }catch(IOException e){
+        try {
+            while (true)
+                set.add((E) in.readObject());
+        } catch (IOException e) {
             return;
         }
 
@@ -71,17 +73,26 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
     @Override
     public boolean add(E o) {
         try {
-            out.writeObject(o);
+            if (isFull()) {
+                clear();
+            }
+
+            if (set.add(o)) {
+                out.writeObject(o);
+                return true;
+            }
+
         } catch (IOException e) {
+            set.remove(o);
             return false;
         }
 
-        return set.add(o);
+        return false;
     }
 
     @Override
     public boolean remove(Object o) {
-         throw new NotImplementedException();
+        throw new NotImplementedException();
     }
 
     @Override
@@ -92,11 +103,10 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
     @Override
     public boolean addAll(Collection<? extends E> c) {
         boolean result = false;
-        for(E element : c){
-            boolean r = this.add(element);
-
-            if(r)
-                result = r;
+        for (E element : c) {
+            if (this.add(element)) {
+                result = true;
+            }
         }
         return result;
     }
@@ -116,13 +126,29 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         f.deleteOnExit();
         try {
             f.createNewFile();
+            out = new ObjectOutputStream(new FileOutputStream(f));
+            storeSet();
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
     @Override
-    public Spliterator spliterator() {
+    public Spliterator<E> spliterator() {
         return set.spliterator();
+    }
+
+    private boolean isFull() {
+        return set.size() == this.maximumCapacity;
+    }
+
+    private void storeSet() {
+        try {
+            for (E element : set) {
+                out.writeObject(element);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }

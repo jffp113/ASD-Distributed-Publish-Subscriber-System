@@ -91,7 +91,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
     @Override
     public void nodeConnectionReestablished(Host host) {
-        System.out.println("connection reestablished: " + host);
+        // Nothing to do here.
     }
 
     private final ProtocolRequestHandler uponGetMembershipRequest = (protocolRequest) -> {

@@ -5,7 +5,7 @@ import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
 import network.INetwork;
-import precistante.PersistentMap;
+import persistence.PersistentMap;
 import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
