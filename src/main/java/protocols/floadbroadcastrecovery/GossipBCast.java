@@ -14,6 +14,7 @@ import babel.requestreply.ProtocolRequest;
 import babel.timer.ProtocolTimer;
 import network.Host;
 import network.INetwork;
+import precistante.PersistentSet;
 import protocols.floadbroadcastrecovery.messages.BCastProtocolMessage;
 import protocols.floadbroadcastrecovery.messages.MessageRequestProtocolMessage;
 import protocols.floadbroadcastrecovery.messages.ReBCastProtocolMessage;
@@ -75,7 +76,11 @@ public class GossipBCast extends GenericProtocol {
         //Load parameters
         fanout = Short.parseShort(props.getProperty("fanout", "3"));
         //Initialize State
-        this.delivered = new TreeSet<>();
+        try {
+            this.delivered = new PersistentSet(new TreeSet<>(),"./perc/Delivered"+props.getProperty("listen_base_port"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
         this.pending = new HashMap<>();
         this.recoveryMSG = new HashMap<>(100);
 

@@ -5,6 +5,7 @@ import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
 import network.INetwork;
+import precistante.PersistentMap;
 import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
@@ -45,7 +46,12 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
     @Override
     public void init(Properties properties) {
-        this.topics = new HashMap<>(INITIAL_CAPACITY);
+        try {
+            this.topics = new PersistentMap<>(new HashMap<>(INITIAL_CAPACITY)
+                    ,"./perc/Topics"+properties.getProperty("listen_base_port"));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     /**
      * Sends a publish request to the underlying protocol.

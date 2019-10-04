@@ -42,3 +42,5 @@ local.properties
 .classpath
 .settings/
 .loadpath
+
+perc/*
