@@ -5,7 +5,6 @@ import babel.handlers.ProtocolMessageHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.handlers.ProtocolTimerHandler;
 import babel.protocol.GenericProtocol;
-import babel.protocol.event.ProtocolMessage;
 import network.Host;
 import network.INetwork;
 import network.INodeListener;
@@ -98,7 +97,9 @@ public class HyParView extends GenericProtocol implements INodeListener {
     private final ProtocolRequestHandler uponGetMembershipRequest = (protocolRequest) -> {
         try {
             GetSampleRequest sampleRequest = (GetSampleRequest) protocolRequest;
-            GetSampleReply sampleReply = new GetSampleReply(sampleRequest.getIdentifier(), activeView);
+            int fanout = sampleRequest.getFanout();
+
+            GetSampleReply sampleReply = new GetSampleReply(sampleRequest.getIdentifier(), pickSampleFromSet(activeView,fanout));
 
             sampleReply.invertDestination(protocolRequest);
             sendReply(sampleReply);
