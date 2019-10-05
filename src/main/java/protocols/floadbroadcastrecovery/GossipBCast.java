@@ -35,8 +35,6 @@ public class GossipBCast extends GenericProtocol {
     public static final String RECOVERY_FILE_NAME = "./pers/Recovery";
     private static final String REBROADCAST_INIT = "rebroadcastInit";
     private static final String REBROADCAST_PERIOD = "rebroadcastPeriod";
-    private static final String PURGE_INIT = "purgeInit";
-    private static final String PURGE_PERIOD = "purgePeriod";
     private static final int INITIAL_CAPACITY = 100;
 
     //Parameters
@@ -94,8 +92,6 @@ public class GossipBCast extends GenericProtocol {
         //setup timers
         setupPeriodicTimer(new PeriodicRebroadcastProtocolTimer(), Integer.parseInt(props.getProperty(REBROADCAST_INIT, "1000")),
                 Integer.parseInt(props.getProperty(REBROADCAST_PERIOD, "2000")));
-        setupPeriodicTimer(new PeriodicPurgeProtocolTimer(), Integer.parseInt(props.getProperty(PURGE_INIT, "5000")),
-                Integer.parseInt(props.getProperty(PURGE_PERIOD, "100000")));
     }
 
 
