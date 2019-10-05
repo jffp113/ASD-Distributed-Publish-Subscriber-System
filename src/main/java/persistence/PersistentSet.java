@@ -3,19 +3,15 @@ package persistence;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.*;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Set;
-import java.util.Spliterator;
+import java.util.*;
 
 public class PersistentSet<E extends Serializable> implements Set<E> {
 
     private Set<E> set;
     private ObjectOutputStream out;
     private File f;
-    private int maximumCapacity;
 
-    public PersistentSet(Set<E> set, String fileName, int maximumCapacity) throws Exception {
+    public PersistentSet(Set<E> set, String fileName) throws Exception {
         this.set = set;
         f = new File(fileName);
 
@@ -25,7 +21,6 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
             fillSet();
 
         this.out = new ObjectOutputStream(new FileOutputStream(f));
-        this.maximumCapacity = maximumCapacity;
     }
 
     private void fillSet() throws Exception {
@@ -73,9 +68,6 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
     @Override
     public boolean add(E o) {
         try {
-            if (isFull()) {
-                clear();
-            }
 
             if (set.add(o)) {
                 out.writeObject(o);
@@ -127,7 +119,6 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         try {
             f.createNewFile();
             out = new ObjectOutputStream(new FileOutputStream(f));
-            storeSet();
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -138,17 +129,4 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         return set.spliterator();
     }
 
-    private boolean isFull() {
-        return set.size() == this.maximumCapacity;
-    }
-
-    private void storeSet() {
-        try {
-            for (E element : set) {
-                out.writeObject(element);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }

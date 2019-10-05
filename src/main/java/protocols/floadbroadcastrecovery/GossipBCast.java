@@ -1,6 +1,5 @@
 package protocols.floadbroadcastrecovery;
 
-
 import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.exceptions.HandlerRegistrationException;
 import babel.handlers.ProtocolMessageHandler;
@@ -40,7 +39,6 @@ public class GossipBCast extends GenericProtocol {
     private static final String PURGE_PERIOD = "purgePeriod";
     private static final int INITIAL_CAPACITY = 100;
 
-
     //Parameters
     private int fanout;
 
@@ -54,7 +52,6 @@ public class GossipBCast extends GenericProtocol {
      * We can use lazy push to send duplicates messages.
      */
     private Map<UUID, BCastProtocolMessage> recoveryMSG;
-
 
     public GossipBCast(INetwork net) throws HandlerRegistrationException {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
@@ -76,7 +73,6 @@ public class GossipBCast extends GenericProtocol {
 
         //Timers
         registerTimerHandler(PeriodicRebroadcastProtocolTimer.TIMER_CODE, rebroadcastTimerHandler);
-        registerTimerHandler(PeriodicPurgeProtocolTimer.TIMER_CODE, purgeTimerHandler);
         //nothing to be done
 
     }
@@ -88,9 +84,8 @@ public class GossipBCast extends GenericProtocol {
         //Initialize State
         try {
             int basePort = Integer.parseInt(props.getProperty(LISTEN_BASE_PORT));
-            //TODO change these
-            this.delivered = new PersistentSet<>(new TreeSet<>(), DELIVERED_FILE_NAME + basePort, 1);
-            this.recoveryMSG = new PersistentMap<>(new HashMap<>(INITIAL_CAPACITY), RECOVERY_FILE_NAME + basePort, 1);
+            this.delivered = new PersistentSet<>(new TreeSet<>(), DELIVERED_FILE_NAME + basePort);
+            this.recoveryMSG = new PersistentMap<>(new HashMap<>(INITIAL_CAPACITY), RECOVERY_FILE_NAME + basePort);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -109,12 +104,6 @@ public class GossipBCast extends GenericProtocol {
         ReBCastProtocolMessage request = new ReBCastProtocolMessage(new LinkedList<>(recoveryMSG.keySet()), myself);
         requestMessageBroadcast(request);
     };
-
-    private ProtocolTimerHandler purgeTimerHandler = (protocolTimer) -> {
-        this.recoveryMSG.clear();
-        this.delivered.clear();
-    };
-
 
     private ProtocolMessageHandler uponReBcastProtocolMessage = (protocolMessage) -> {
         ReBCastProtocolMessage msg = (ReBCastProtocolMessage) protocolMessage;
@@ -164,7 +153,7 @@ public class GossipBCast extends GenericProtocol {
         BCastProtocolMessage message = new BCastProtocolMessage();
         message.setPayload(req.getPayload());
         //Deliver message
-        recoveryMSG.put(message.getMessageId(), message);
+        putMessageOnRecoveryList(message);
         delivered.add(message.getMessageId());
         requestMessageBroadcast(message);
     };

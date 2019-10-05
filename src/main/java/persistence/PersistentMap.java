@@ -3,41 +3,39 @@ package persistence;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.*;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
-public class PersistentMap<K extends Serializable  , V extends Serializable> implements Map<K ,V>{
+public class PersistentMap<K extends Serializable, V extends Serializable> implements Map<K, V> {
 
-    private Map<K,V> map;
+    private Map<K, V> map;
     private ObjectOutputStream out;
     private File f;
-    private int maximumCapacity;
 
-    public PersistentMap(Map<K, V> map, String fileName, int maximumCapacity) throws Exception {
+    public PersistentMap(Map<K, V> map, String fileName) throws Exception {
         this.map = map;
         f = new File(fileName);
 
-        if(!f.exists())
+        if (!f.exists()) {
             f.createNewFile();
-        else
+        } else {
             fillMap();
+        }
 
         this.out = new ObjectOutputStream(new FileOutputStream(f));
-        this.maximumCapacity=maximumCapacity;
     }
 
     private void fillMap() throws Exception {
         ObjectInputStream in = new ObjectInputStream(new FileInputStream(f));
 
-        try{
-            while(true) {
-                Entry<K,V> entry = (Entry)in.readObject();
-                map.put(entry.getKey(),entry.getValue());
+        try {
+            while (true) {
+                Entry<K, V> entry = (Entry) in.readObject();
+                map.put(entry.getKey(), entry.getValue());
             }
-        }catch(IOException e){
+        } catch (IOException e) {
             return;
         }
+
     }
 
     @Override
@@ -67,11 +65,7 @@ public class PersistentMap<K extends Serializable  , V extends Serializable> imp
 
     @Override
     public V put(K key, V value) {
-        if(isFull()){
-            clear();
-        }
-
-        Entry<K,V> entry = new MyEntry<>(key, value);
+        Entry<K, V> entry = new MyEntry<>(key, value);
 
         try {
             out.writeObject(entry);
@@ -79,12 +73,12 @@ public class PersistentMap<K extends Serializable  , V extends Serializable> imp
             return null;
         }
 
-        return map.put(key,value);
+        return map.put(key, value);
     }
 
     @Override
     public V remove(Object key) {
-        return map.remove(key);
+        throw new NotImplementedException();
     }
 
     @Override
@@ -98,7 +92,6 @@ public class PersistentMap<K extends Serializable  , V extends Serializable> imp
         try {
             f.createNewFile();
             out = new ObjectOutputStream(new FileOutputStream(f));
-            storeMap();
             this.map.clear();
         } catch (IOException e) {
             e.printStackTrace();
@@ -120,17 +113,4 @@ public class PersistentMap<K extends Serializable  , V extends Serializable> imp
         return map.entrySet();
     }
 
-    private boolean isFull(){
-        return map.size()==maximumCapacity;
-    }
-
-    private void storeMap(){
-        try {
-            for (Entry<K,V> entry : map.entrySet()) {
-                out.writeObject(entry);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
 }

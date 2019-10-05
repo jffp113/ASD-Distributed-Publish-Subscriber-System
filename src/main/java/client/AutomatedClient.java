@@ -6,13 +6,13 @@ import java.util.HashSet;
 import java.util.Properties;
 
 public class AutomatedClient {
-
+    private static final String NETWORK_CONFIG_PROPERTIES = "src/network_config.properties";
 
     public static final int MESSAGES = 100000;
     public static final int WAIT_TIME = 1000;
 
     public static void main(String[] args) throws Exception{
-        Properties prop = Babel.getInstance().loadConfig("src/network_config.properties",args);
+        Properties prop = Babel.getInstance().loadConfig(NETWORK_CONFIG_PROPERTIES,args);
         Client c = new Client(args);
 
 

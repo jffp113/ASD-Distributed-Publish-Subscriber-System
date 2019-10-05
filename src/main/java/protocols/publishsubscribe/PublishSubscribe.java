@@ -22,6 +22,8 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     public final static short PROTOCOL_ID = 1000;
     public final static String PROTOCOL_NAME = "Publish/Subscriber";
     private static final int INITIAL_CAPACITY = 100;
+    private static final String TOPICS_FILE_NAME = "./pers/Topics";
+    private static final String LISTEN_BASE_PORT = "listen_base_port";
     private Map<String, Boolean> topics;
     /**
      * Fill the map with the client's subscribed topics or remove them.
@@ -48,7 +50,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     public void init(Properties properties) {
         try {
             this.topics = new PersistentMap<>(new HashMap<>(INITIAL_CAPACITY)
-                    ,"./perc/Topics"+properties.getProperty("listen_base_port"));
+                    , TOPICS_FILE_NAME +properties.getProperty(LISTEN_BASE_PORT),INITIAL_CAPACITY);
         } catch (Exception e) {
             e.printStackTrace();
         }
