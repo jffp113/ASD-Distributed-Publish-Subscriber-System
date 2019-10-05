@@ -20,7 +20,7 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         else
             fillSet();
 
-        this.out = new ObjectOutputStream(new FileOutputStream(f));
+        this.out = new ObjectOutputStream(new FileOutputStream(f,true));
     }
 
     private void fillSet() throws Exception {

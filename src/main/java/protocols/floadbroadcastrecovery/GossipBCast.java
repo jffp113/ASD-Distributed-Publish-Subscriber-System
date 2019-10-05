@@ -119,8 +119,11 @@ public class GossipBCast extends GenericProtocol {
         }
     };
 
-    public ProtocolMessageHandler uponMessageRequest = (protocolMessage) -> sendMessage(recoveryMSG.get(((MessageRequestProtocolMessage) protocolMessage).getMessageId()),
-            protocolMessage.getFrom());
+    public ProtocolMessageHandler uponMessageRequest = (protocolMessage) -> {
+
+        sendMessage(recoveryMSG.get(((MessageRequestProtocolMessage) protocolMessage).getMessageId()),
+                protocolMessage.getFrom());
+    };
 
     private void requestMessageBroadcast(ReBCastProtocolMessage request) {
         pending.put(request.getMessageId(), request);

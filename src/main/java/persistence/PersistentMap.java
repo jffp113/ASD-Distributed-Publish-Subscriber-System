@@ -15,13 +15,14 @@ public class PersistentMap<K extends Serializable, V extends Serializable> imple
         this.map = map;
         f = new File(fileName);
 
+
         if (!f.exists()) {
             f.createNewFile();
         } else {
             fillMap();
         }
+        this.out = new ObjectOutputStream(new FileOutputStream(f,true));
 
-        this.out = new ObjectOutputStream(new FileOutputStream(f));
     }
 
     private void fillMap() throws Exception {
@@ -35,7 +36,6 @@ public class PersistentMap<K extends Serializable, V extends Serializable> imple
         } catch (IOException e) {
             return;
         }
-
     }
 
     @Override
@@ -65,7 +65,7 @@ public class PersistentMap<K extends Serializable, V extends Serializable> imple
 
     @Override
     public V put(K key, V value) {
-        Entry<K, V> entry = new MyEntry<>(key, value);
+        MyEntry<K, V> entry = new MyEntry<>(key, value);
 
         try {
             out.writeObject(entry);
@@ -88,14 +88,7 @@ public class PersistentMap<K extends Serializable, V extends Serializable> imple
 
     @Override
     public void clear() {
-        f.deleteOnExit();
-        try {
-            f.createNewFile();
-            out = new ObjectOutputStream(new FileOutputStream(f));
-            this.map.clear();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        throw new NotImplementedException();
     }
 
     @Override
