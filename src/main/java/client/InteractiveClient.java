@@ -62,7 +62,6 @@ public class InteractiveClient {
             buf.append(input_array[i]);
         }
 
-
         return buf.toString();
     }
 }

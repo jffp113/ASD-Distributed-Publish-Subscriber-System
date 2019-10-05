@@ -50,7 +50,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     public void init(Properties properties) {
         try {
             this.topics = new PersistentMap<>(new HashMap<>(INITIAL_CAPACITY)
-                    , TOPICS_FILE_NAME +properties.getProperty(LISTEN_BASE_PORT),INITIAL_CAPACITY);
+                    , TOPICS_FILE_NAME +properties.getProperty(LISTEN_BASE_PORT));
         } catch (Exception e) {
             e.printStackTrace();
         }
