@@ -15,12 +15,10 @@ public class BCastProtocolMessage extends ProtocolMessage implements Serializabl
     private final UUID mid;
     private byte[] payload;
 
-
     public BCastProtocolMessage() {
         super(BCastProtocolMessage.MSG_CODE);
         this.mid = UUID.randomUUID();
         this.payload = new byte[0];
-
     }
 
     public BCastProtocolMessage(UUID mid, byte[] payload) {
@@ -56,7 +54,7 @@ public class BCastProtocolMessage extends ProtocolMessage implements Serializabl
         }
 
         @Override
-        public BCastProtocolMessage deserialize(ByteBuf in) throws UnknownHostException {
+        public BCastProtocolMessage deserialize(ByteBuf in) {
             UUID mid = new UUID(in.readLong(), in.readLong());
             int size = in.readInt();
             byte[] payload = new byte[size];

@@ -17,7 +17,6 @@ import protocols.floadbroadcastrecovery.messages.MessageRequestProtocolMessage;
 import protocols.floadbroadcastrecovery.messages.ReBCastProtocolMessage;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
-import protocols.floadbroadcastrecovery.timers.PeriodicPurgeProtocolTimer;
 import protocols.floadbroadcastrecovery.timers.PeriodicRebroadcastProtocolTimer;
 import protocols.partialmembership.HyParView;
 import protocols.partialmembership.requests.GetSampleReply;

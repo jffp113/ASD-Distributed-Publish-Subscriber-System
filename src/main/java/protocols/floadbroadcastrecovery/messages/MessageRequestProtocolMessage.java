@@ -4,14 +4,11 @@ import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
 import network.ISerializer;
 
-import java.util.LinkedList;
-import java.util.List;
 import java.util.UUID;
 
 public class MessageRequestProtocolMessage extends ProtocolMessage {
 
     public final static short MSG_CODE = 2201;
-
     private final UUID mid;
 
     public MessageRequestProtocolMessage(UUID mid) {

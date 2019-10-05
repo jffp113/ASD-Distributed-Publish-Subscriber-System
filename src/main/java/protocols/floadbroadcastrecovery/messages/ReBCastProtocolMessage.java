@@ -15,7 +15,6 @@ public class ReBCastProtocolMessage extends ProtocolMessage {
 
     public final static short MSG_CODE = 2016;
 
-
     private final List<UUID> midList;
     private final UUID mid;
     private final Host initialHost;
@@ -77,7 +76,7 @@ public class ReBCastProtocolMessage extends ProtocolMessage {
 
         @Override
         public int serializedSize(ReBCastProtocolMessage m) {
-            return (m.midList.size() + 1)*Long.BYTES + 6 + Integer.BYTES;
+            return (m.midList.size() + 1)*2*Long.BYTES + 6 + Integer.BYTES;
         }
     };
 }

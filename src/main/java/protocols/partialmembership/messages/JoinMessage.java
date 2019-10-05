@@ -40,7 +40,7 @@ public class JoinMessage extends ProtocolMessage {
 
         @Override
         public int serializedSize(JoinMessage joinMessage) {
-            return joinMessage.getNode().serializedSize();
+            return joinMessage.node.serializedSize();
         }
     };
 }

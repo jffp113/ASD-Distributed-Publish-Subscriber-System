@@ -9,6 +9,10 @@ import java.net.UnknownHostException;
 
 public class ForwardJoinMessage extends ProtocolMessage {
     public final static short MSG_CODE = 1088;
+    private final Host newNode;
+    private int ttl;
+    private final Host sender;
+
     public static final ISerializer<ForwardJoinMessage> serializer = new ISerializer<ForwardJoinMessage>() {
         @Override
         public void serialize(ForwardJoinMessage joinMessage, ByteBuf out) {
@@ -19,20 +23,17 @@ public class ForwardJoinMessage extends ProtocolMessage {
 
         @Override
         public ForwardJoinMessage deserialize(ByteBuf in) throws UnknownHostException {
-            Host joinerHost = Host.deserialize(in);
-            Host senderHost = Host.deserialize(in);
+            Host newNode = Host.deserialize(in);
+            Host sender = Host.deserialize(in);
             int ttl = in.readInt();
-            return new ForwardJoinMessage(joinerHost, senderHost, ttl);
+            return new ForwardJoinMessage(newNode, sender, ttl);
         }
 
         @Override
         public int serializedSize(ForwardJoinMessage joinMessage) {
-            return joinMessage.getSender().serializedSize() + joinMessage.getNewNode().serializedSize() + Integer.BYTES;
+            return joinMessage.sender.serializedSize() + joinMessage.newNode.serializedSize() + Integer.BYTES;
         }
     };
-    private final Host newNode;
-    private int ttl;
-    private final Host sender;
 
     public ForwardJoinMessage(Host newNode, Host sender, int ttl) {
         super(MSG_CODE);
