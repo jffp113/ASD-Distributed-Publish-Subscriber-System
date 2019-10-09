@@ -15,6 +15,7 @@ import protocols.partialmembership.messages.ShuffleMessage;
 import protocols.partialmembership.messages.ShuffleReplyMessage;
 import protocols.partialmembership.requests.GetSampleReply;
 import protocols.partialmembership.requests.GetSampleRequest;
+import protocols.partialmembership.timers.DebugTimer;
 import protocols.partialmembership.timers.ShuffleProtocolTimer;
 
 import java.net.InetAddress;
@@ -49,12 +50,20 @@ public class HyParView extends GenericProtocol implements INodeListener {
         registerRequestHandler(GetSampleRequest.REQUEST_ID, uponGetMembershipRequest);
 
         registerTimerHandler(ShuffleProtocolTimer.TIMERCODE, uponShuffleTimer);
+        registerTimerHandler(DebugTimer.TimerCode, uponDebugTimer);
 
         registerMessageHandler(JoinMessage.MSG_CODE, uponReceiveJoin, JoinMessage.serializer);
         registerMessageHandler(ForwardJoinMessage.MSG_CODE, uponReceiveForwardJoin, ForwardJoinMessage.serializer);
         registerMessageHandler(ShuffleMessage.MSG_CODE, uponShuffle, ShuffleMessage.serializer);
         registerMessageHandler(ShuffleReplyMessage.MSG_CODE, uponShuffleReply, ShuffleReplyMessage.serializer);
     }
+
+    private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
+        System.out.println("Active");
+        System.out.println(activeView);
+        System.out.println("passive");
+        System.out.println(passiveView);
+    };
 
     @Override
     public void init(Properties properties) {
@@ -64,6 +73,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
         long shuffleInit = Long.parseLong(properties.getProperty(SHUFFLE_INIT));
         long shufflePeriod = Long.parseLong(properties.getProperty(SHUFFLE_PERIOD));
         setupPeriodicTimer(new ShuffleProtocolTimer(), shuffleInit, shufflePeriod);
+        setupPeriodicTimer(new DebugTimer(), 2000, 5000);
 
         String contact = properties.getProperty(CONTACT);
 
@@ -82,11 +92,9 @@ public class HyParView extends GenericProtocol implements INodeListener {
     }
 
     @Override
-    public void nodeUp(Host host) {
-        if (passiveView.contains(host)) {
-            addNodeToActiveView(host);
-            passiveView.remove(host);
-        }
+    public void nodeUp(Host host) { //TODO SEE
+        addNodeToActiveView(host);
+        passiveView.remove(host);
     }
 
     @Override
@@ -175,11 +183,13 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
             mergeIntoPassiveView(samples, replyMessage.getNodes());
 
-            if (!activeView.contains(shuffleMessage.getSender())) {
-                addNetworkPeer(shuffleMessage.getSender());
+            if (activeView.contains(shuffleMessage.getSender())) {//TODO
+                sendMessage(replyMessage, shuffleMessage.getSender());
+            }
+            else {
+                sendMessageSideChannel(replyMessage, shuffleMessage.getSender());
             }
 
-            sendMessage(replyMessage, shuffleMessage.getSender());
         }
 
     };
@@ -191,9 +201,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
         Set<Host> sentNodes = mergeSamples(shuffleMessage.getAvSample(), shuffleMessage.getPvSample());
         mergeIntoPassiveView(shuffleReplyMessage.getNodes(), sentNodes);
 
-        if (!activeView.contains(shuffleReplyMessage.getFrom())) {
-            removeNetworkPeer(shuffleReplyMessage.getFrom());
-        }
     };
 
     private void initProperties(Properties properties) {
