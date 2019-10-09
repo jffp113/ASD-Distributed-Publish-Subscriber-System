@@ -3,7 +3,10 @@ package persistence;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.*;
-import java.util.*;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.Spliterator;
 
 public class PersistentSet<E extends Serializable> implements Set<E> {
 
@@ -17,11 +20,10 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
 
         if (!f.exists()) {
             f.createNewFile();
-            this.out = new ObjectOutputStream(new FileOutputStream(f,true));
-        }
-        else {
+            this.out = new ObjectOutputStream(new FileOutputStream(f, true));
+        } else {
             fillSet();
-            this.out = new AppendingObjectOutputStream(new FileOutputStream(f,true));
+            this.out = new AppendingObjectOutputStream(new FileOutputStream(f, true));
         }
 
     }
@@ -35,7 +37,6 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         } catch (IOException e) {
             return;
         }
-
 
     }
 
@@ -74,8 +75,8 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         try {
 
             if (set.add(o)) {
-               out.writeObject(o);
-               out.flush();
+                out.writeObject(o);
+                out.flush();
 
                 return true;
             }

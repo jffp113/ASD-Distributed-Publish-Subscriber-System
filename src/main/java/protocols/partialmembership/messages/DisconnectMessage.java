@@ -18,7 +18,7 @@ public class DisconnectMessage extends ProtocolMessage {
 
     @Override
     public String toString() {
-        return "PSProtocolMessage{" +
+        return "DisconnectMessage{" +
                 "node= " + node.toString() +
                 '}';
     }
@@ -29,8 +29,8 @@ public class DisconnectMessage extends ProtocolMessage {
 
     public static final ISerializer<DisconnectMessage> serializer = new ISerializer<DisconnectMessage>() {
         @Override
-        public void serialize(DisconnectMessage joinMessage, ByteBuf out) {
-            joinMessage.getNode().serialize(out);
+        public void serialize(DisconnectMessage disconnectMessage, ByteBuf out) {
+            disconnectMessage.getNode().serialize(out);
         }
 
         @Override
@@ -39,8 +39,8 @@ public class DisconnectMessage extends ProtocolMessage {
         }
 
         @Override
-        public int serializedSize(DisconnectMessage joinMessage) {
-            return joinMessage.node.serializedSize();
+        public int serializedSize(DisconnectMessage disconnectMessage) {
+            return disconnectMessage.node.serializedSize();
         }
     };
 }

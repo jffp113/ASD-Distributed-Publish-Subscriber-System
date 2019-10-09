@@ -21,6 +21,7 @@ import protocols.floadbroadcastrecovery.timers.PeriodicRebroadcastProtocolTimer;
 import protocols.partialmembership.HyParView;
 import protocols.partialmembership.requests.GetSampleReply;
 import protocols.partialmembership.requests.GetSampleRequest;
+import utils.PropertiesUtils;
 
 import java.util.*;
 
@@ -28,10 +29,11 @@ public class GossipBCast extends GenericProtocol {
 
     public static final short PROTOCOL_ID = 200;
     public static final String PROTOCOL_NAME = "GossipBCast";
+
     private static final String FANOUT = "fanout";
     private static final String LISTEN_BASE_PORT = "listen_base_port";
     private static final String DELIVERED_FILE_NAME = "./pers/Delivered";
-    public static final String RECOVERY_FILE_NAME = "./pers/Recovery";
+    private static final String RECOVERY_FILE_NAME = "./pers/Recovery";
     private static final String REBROADCAST_INIT = "rebroadcastInit";
     private static final String REBROADCAST_PERIOD = "rebroadcastPeriod";
     private static final int INITIAL_CAPACITY = 100;
@@ -77,10 +79,10 @@ public class GossipBCast extends GenericProtocol {
     @Override
     public void init(Properties props) {
         //Load parameters
-        fanout = Short.parseShort(props.getProperty(FANOUT, "3"));
+        fanout = PropertiesUtils.getPropertyAsInt(props, FANOUT);
         //Initialize State
         try {
-            int basePort = Integer.parseInt(props.getProperty(LISTEN_BASE_PORT));
+            int basePort = PropertiesUtils.getPropertyAsInt(props, LISTEN_BASE_PORT);
             this.delivered = new PersistentSet<>(new TreeSet<>(), DELIVERED_FILE_NAME + basePort);
             this.recoveryMSG = new PersistentMap<>(new HashMap<>(INITIAL_CAPACITY), RECOVERY_FILE_NAME + basePort);
         } catch (Exception e) {
@@ -89,15 +91,15 @@ public class GossipBCast extends GenericProtocol {
         this.pending = new HashMap<>();
 
         //setup timers
-        setupPeriodicTimer(new PeriodicRebroadcastProtocolTimer(), Integer.parseInt(props.getProperty(REBROADCAST_INIT, "1000")),
-                Integer.parseInt(props.getProperty(REBROADCAST_PERIOD, "2000")));
+        setupPeriodicTimer(new PeriodicRebroadcastProtocolTimer(), PropertiesUtils.getPropertyAsInt(props, REBROADCAST_INIT),
+                PropertiesUtils.getPropertyAsInt(props, REBROADCAST_PERIOD));
     }
 
 
     private ProtocolTimerHandler rebroadcastTimerHandler = (protocolTimer) -> {
         //Create Request for peers (in the membership)
         ReBCastProtocolMessage request = new ReBCastProtocolMessage(new LinkedList<>(recoveryMSG.keySet()), myself);
-        requestMessageBroadcast(request);
+        requestReBMessageBroadcast(request);
     };
 
     private ProtocolMessageHandler uponReBcastProtocolMessage = (protocolMessage) -> {
@@ -114,23 +116,42 @@ public class GossipBCast extends GenericProtocol {
 
             //Deliver message
             delivered.add(msg.getMessageId());
-            requestMessageBroadcast(msg);
+            requestReBMessageBroadcast(msg);
         }
     };
 
     public ProtocolMessageHandler uponMessageRequest = (protocolMessage) -> {
-        sendMessageSideChannel(recoveryMSG.get(((MessageRequestProtocolMessage) protocolMessage).getMessageId()),
-                protocolMessage.getFrom());
+        MessageRequestProtocolMessage messageRequestProtocolMessage = (MessageRequestProtocolMessage) protocolMessage;
+        BCastProtocolMessage message = recoveryMSG.get(messageRequestProtocolMessage.getMessageId());
+
+        sendMessageSideChannel(message, messageRequestProtocolMessage.getFrom());
     };
 
-    private void requestMessageBroadcast(ReBCastProtocolMessage request) {
-        pending.put(request.getMessageId(), request);
+    private void requestReBMessageBroadcast(ReBCastProtocolMessage msg) {
+        pending.put(msg.getMessageId(), msg);
+        sendRequestToPeers(msg.getMessageId());
+    }
 
-        GetSampleRequest requestPeers = new GetSampleRequest(fanout, request.getMessageId());
-        requestPeers.setDestination(HyParView.PROTOCOL_ID);
+    /**
+     * This method will request the layer below the peers to broadcast the message
+     * and save the message for broadcasting later
+     *
+     * @param msg
+     */
+    private void requestMessageBroadcast(BCastProtocolMessage msg) {
+        BCastDeliver deliver = new BCastDeliver(msg.getPayload());
+        triggerNotification(deliver);
+
+        pending.put(msg.getMessageId(), msg);
+        sendRequestToPeers(msg.getMessageId());
+    }
+
+    private void sendRequestToPeers(UUID msgID) {
+        GetSampleRequest request = new GetSampleRequest(fanout, msgID);
+        request.setDestination(HyParView.PROTOCOL_ID);
 
         try {
-            sendRequest(requestPeers);
+            sendRequest(request);
         } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
             destinationProtocolDoesNotExist.printStackTrace();
             System.exit(1);
@@ -148,6 +169,7 @@ public class GossipBCast extends GenericProtocol {
         BCastRequest req = (BCastRequest) protocolRequest;
         BCastProtocolMessage message = new BCastProtocolMessage();
         message.setPayload(req.getPayload());
+
         //Deliver message
         putMessageOnRecoveryList(message);
         delivered.add(message.getMessageId());
@@ -183,30 +205,9 @@ public class GossipBCast extends GenericProtocol {
         }
     };
 
-    /**
-     * This method will request the layer below the peers to broadcast the message
-     * and save the message for broadcasting later
-     *
-     * @param msg
-     */
-    private void requestMessageBroadcast(BCastProtocolMessage msg) {
-        BCastDeliver deliver = new BCastDeliver(msg.getPayload());
-        triggerNotification(deliver);
 
-        //Create Request for peers (in the membership)
-        GetSampleRequest request = new GetSampleRequest(fanout, msg.getMessageId());
-        request.setDestination(HyParView.PROTOCOL_ID);
-        pending.put(msg.getMessageId(), msg);
-        try {
-            sendRequest(request);
-        } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
-            destinationProtocolDoesNotExist.printStackTrace();
-            System.exit(1);
-        }
-    }
-
-    private void putMessageOnRecoveryList(BCastProtocolMessage m) {
-        this.recoveryMSG.put(m.getMessageId(), m);
+    private void putMessageOnRecoveryList(BCastProtocolMessage msg) {
+        this.recoveryMSG.put(msg.getMessageId(), msg);
     }
 
     //On the broadcasting a message put it on rebroadcast in order to rebroadcast if a process recovery from a crash

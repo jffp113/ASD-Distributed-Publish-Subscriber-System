@@ -56,7 +56,7 @@ public class ForwardJoinMessage extends ProtocolMessage {
 
     @Override
     public String toString() {
-        return "PSProtocolMessage{" +
+        return "ForwardJoinMessage{" +
                 "newNode= " + newNode.toString() +
                 "sender= " + sender.toString() +
                 "ttl= " + ttl +

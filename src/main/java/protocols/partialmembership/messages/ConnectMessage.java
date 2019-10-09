@@ -18,7 +18,7 @@ public class ConnectMessage extends ProtocolMessage {
 
     @Override
     public String toString() {
-        return "PSProtocolMessage{" +
+        return "ConnectlMessage{" +
                 "node= " + node.toString() +
                 '}';
     }
@@ -29,8 +29,8 @@ public class ConnectMessage extends ProtocolMessage {
 
     public static final ISerializer<ConnectMessage> serializer = new ISerializer<ConnectMessage>() {
         @Override
-        public void serialize(ConnectMessage joinMessage, ByteBuf out) {
-            joinMessage.getNode().serialize(out);
+        public void serialize(ConnectMessage connectMessage, ByteBuf out) {
+            connectMessage.getNode().serialize(out);
         }
 
         @Override
@@ -39,8 +39,8 @@ public class ConnectMessage extends ProtocolMessage {
         }
 
         @Override
-        public int serializedSize(ConnectMessage joinMessage) {
-            return joinMessage.node.serializedSize();
+        public int serializedSize(ConnectMessage connectMessage) {
+            return connectMessage.node.serializedSize();
         }
     };
 }

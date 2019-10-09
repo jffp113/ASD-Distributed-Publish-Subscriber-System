@@ -19,7 +19,6 @@ public class BCastDeliver extends ProtocolNotification {
         super(BCastDeliver.NOTIFICATION_ID, NOTIFICATION_NAME);
         this.message = message;
         this.topic = topic;
-
     }
 
     public BCastDeliver(byte[] payload) {
@@ -27,18 +26,15 @@ public class BCastDeliver extends ProtocolNotification {
         String payloadAsAString = new String(payload);
         Matcher m = regex.matcher(payloadAsAString);
         int topicLength = -1;
-        int messageLength = -1;
         String all = "";
 
         if (m.find()) {
             topicLength = Integer.parseInt(m.group(1));
-            messageLength = Integer.parseInt(m.group(2));
             all = m.group(3);
         }
 
         this.topic = all.substring(0, topicLength);
         this.message = all.substring(topicLength);
-
     }
 
     public String getMessage() {
@@ -48,6 +44,5 @@ public class BCastDeliver extends ProtocolNotification {
     public String getTopic() {
         return topic;
     }
-
 
 }

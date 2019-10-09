@@ -18,7 +18,7 @@ public class RejectMessage extends ProtocolMessage {
 
     @Override
     public String toString() {
-        return "PSProtocolMessage{" +
+        return "RejectMessage{" +
                 "node= " + node.toString() +
                 '}';
     }
@@ -29,8 +29,8 @@ public class RejectMessage extends ProtocolMessage {
 
     public static final ISerializer<RejectMessage> serializer = new ISerializer<RejectMessage>() {
         @Override
-        public void serialize(RejectMessage joinMessage, ByteBuf out) {
-            joinMessage.getNode().serialize(out);
+        public void serialize(RejectMessage rejectMessage, ByteBuf out) {
+            rejectMessage.getNode().serialize(out);
         }
 
         @Override
@@ -39,8 +39,8 @@ public class RejectMessage extends ProtocolMessage {
         }
 
         @Override
-        public int serializedSize(RejectMessage joinMessage) {
-            return joinMessage.node.serializedSize();
+        public int serializedSize(RejectMessage rejectMessage) {
+            return rejectMessage.node.serializedSize();
         }
     };
 }

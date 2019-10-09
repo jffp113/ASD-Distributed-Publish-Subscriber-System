@@ -26,7 +26,7 @@ public class JoinMessage extends ProtocolMessage {
 
     @Override
     public String toString() {
-        return "PSProtocolMessage{" +
+        return "JoinlMessage{" +
                 "node= " + node.toString() +
                 '}';
     }

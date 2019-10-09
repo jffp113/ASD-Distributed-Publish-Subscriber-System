@@ -3,7 +3,9 @@ package persistence;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.*;
-import java.util.*;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 
 public class PersistentMap<K extends Serializable, V extends Serializable> implements Map<K, V> {
 
@@ -15,15 +17,13 @@ public class PersistentMap<K extends Serializable, V extends Serializable> imple
         this.map = map;
         f = new File(fileName);
 
-
         if (!f.exists()) {
             f.createNewFile();
-            this.out = new ObjectOutputStream(new FileOutputStream(f,true));
+            this.out = new ObjectOutputStream(new FileOutputStream(f, true));
         } else {
             fillMap();
-            this.out = new AppendingObjectOutputStream(new FileOutputStream(f,true));
+            this.out = new AppendingObjectOutputStream(new FileOutputStream(f, true));
         }
-
 
     }
 
@@ -71,6 +71,7 @@ public class PersistentMap<K extends Serializable, V extends Serializable> imple
 
         try {
             out.writeObject(entry);
+            out.flush();
         } catch (IOException e) {
             return null;
         }

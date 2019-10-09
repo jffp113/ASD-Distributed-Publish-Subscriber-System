@@ -8,13 +8,13 @@ import babel.protocol.GenericProtocol;
 import network.Host;
 import network.INetwork;
 import network.INodeListener;
-import org.apache.logging.log4j.core.util.Integers;
 import protocols.partialmembership.messages.*;
 import protocols.partialmembership.requests.GetSampleReply;
 import protocols.partialmembership.requests.GetSampleRequest;
 import protocols.partialmembership.timers.DebugTimer;
 import protocols.partialmembership.timers.FailDetectionTimer;
 import protocols.partialmembership.timers.ShuffleProtocolTimer;
+import utils.PropertiesUtils;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -182,7 +182,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
         JoinMessage joinMessage = (JoinMessage) protocolMessage;
 
         Host node = joinMessage.getNode();
-      //  System.out.println("tried to connect with "+node + "priority "+joinMessage.isMaxPriority());
+        //  System.out.println("tried to connect with "+node + "priority "+joinMessage.isMaxPriority());
         if (joinMessage.isMaxPriority()) {
             addNodeToActiveView(node);
             sendMessage(new ConnectMessage(myself), node);
@@ -203,7 +203,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
     };
 
-
     private final ProtocolMessageHandler uponReceiveForwardJoin = (protocolMessage) -> {
         ForwardJoinMessage forwardJoinMessage = (ForwardJoinMessage) protocolMessage;
         int ttl = forwardJoinMessage.getTtl();
@@ -212,16 +211,18 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
         if (ttl == 0 || activeView.size() == 1) {
             addNodeToActiveView(newNode);
-            sendMessage(new ConnectMessage(myself),newNode);
+            sendMessage(new ConnectMessage(myself), newNode);
         } else {
             if (ttl == prwl) {
                 addNodeToPassiveView(newNode);
             }
-            Host neigh = null;
-            if (!activeView.isEmpty())
+
+            if (!activeView.isEmpty()) {
+                Host neigh;
                 neigh = selectRandomFromView(activeView, sender);
-            if (neigh != null) {
-                sendMessage(new ForwardJoinMessage(newNode, myself, ttl - 1), neigh);
+                if (neigh != null) {
+                    sendMessage(new ForwardJoinMessage(newNode, myself, ttl - 1), neigh);
+                }
             }
         }
     };
@@ -233,8 +234,9 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
         if (ttl > 0 && activeView.size() > 1 && !activeView.isEmpty()) {
             Host neigh = selectRandomFromView(activeView, shuffleMessage.getSender());
-            if (neigh != null)
+            if (neigh != null){
                 sendMessage(shuffleMessage, neigh);
+            }
         } else {
             int elmsToPick = shuffleMessage.getPvSample().size() + shuffleMessage.getAvSample().size() + 1;
             Set<Host> sample = pickSampleFromSet(passiveView, elmsToPick);
@@ -245,7 +247,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
             mergeIntoPassiveView(samples, replyMessage.getNodes());
 
-            if (activeView.contains(shuffleMessage.getSender())) {//TODO
+            if (activeView.contains(shuffleMessage.getSender())) {
                 sendMessage(replyMessage, shuffleMessage.getSender());
             } else {
                 sendMessageSideChannel(replyMessage, shuffleMessage.getSender());
@@ -265,19 +267,18 @@ public class HyParView extends GenericProtocol implements INodeListener {
     };
 
     private final ProtocolMessageHandler uponDisconnect = (protocolMessage) -> {
-        //todo
         DisconnectMessage disconnectMessage = (DisconnectMessage) protocolMessage;
         activeView.remove(disconnectMessage.getNode());
         removeNetworkPeer(disconnectMessage.getNode());
     };
 
     private void initProperties(Properties properties) {
-        logNPlusC = Integer.parseInt(properties.getProperty(ACTIVE_VIEW_SIZE));
-        k = Integer.parseInt(properties.getProperty(PASSIVE_VIEW_CONSTANT));
-        arwl = Integer.parseInt(properties.getProperty(ACTIVE_RANDOM_WALK_LENGTH));
-        prwl = Integer.parseInt(properties.getProperty(PASSIVE_RANDOM_WALK_LENGTH));
-        elmsToPickFromAV = Integer.parseInt(properties.getProperty(ELMS_TO_PICK_AV));
-        elmsToPickFromPV = Integers.parseInt(properties.getProperty(ELMS_TO_PICK_PV));
+        logNPlusC = PropertiesUtils.getPropertyAsInt(properties, ACTIVE_VIEW_SIZE);
+        k = PropertiesUtils.getPropertyAsInt(properties, PASSIVE_VIEW_CONSTANT);
+        arwl = PropertiesUtils.getPropertyAsInt(properties, ACTIVE_RANDOM_WALK_LENGTH);
+        prwl = PropertiesUtils.getPropertyAsInt(properties, PASSIVE_RANDOM_WALK_LENGTH);
+        elmsToPickFromAV = PropertiesUtils.getPropertyAsInt(properties, ELMS_TO_PICK_AV);
+        elmsToPickFromPV = PropertiesUtils.getPropertyAsInt(properties, ELMS_TO_PICK_PV);
     }
 
     private void initStructures() {
@@ -291,7 +292,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
         try {
             String[] contactSplit = contact.split(":");
             Host host = new Host(InetAddress.getByName(contactSplit[0]), Integer.parseInt(contactSplit[1]));
-            //addNodeToActiveView(host);
             sendMessageSideChannel(new JoinMessage(myself, true), host);
         } catch (UnknownHostException e) {
             // Ignored - contact should exist
@@ -311,10 +311,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
                 dropRandomNodeFromActiveView();
             }
 
-            if (passiveView.contains(node)) {
-                passiveView.remove(node);
-            }
-
+            passiveView.remove(node);
             activeView.add(node);
             addNetworkPeer(node);
         }
@@ -337,7 +334,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
     }
 
     private boolean isFullPassiveView() {
-        return passiveView.size() == (k * logNPlusC);
+        return passiveView.size() >= (k * logNPlusC);
     }
 
     private void dropRandomNodeFromActiveView() {
@@ -373,7 +370,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
     }
 
     private boolean isFullActiveView() {
-        return activeView.size() >= (logNPlusC);
+        return activeView.size() >= logNPlusC;
     }
 
     private Set<Host> pickSampleFromSet(Set<Host> setToPick, int elmsToPick) {
@@ -398,17 +395,20 @@ public class HyParView extends GenericProtocol implements INodeListener {
         int nodesToAdd = samplesToAdd.size();
 
         int maxPVSize = k * logNPlusC;
-        Iterator<Host> it = sentNodes.iterator();
 
+        Iterator<Host> it = sentNodes.iterator();
         while (maxPVSize - passiveView.size() < nodesToAdd) {
-            if (!it.hasNext()) break;
+            if (!it.hasNext()){
+                break;
+            }
+
             passiveView.remove(it.next());
         }
 
         while (maxPVSize - passiveView.size() < nodesToAdd) {
             dropRandomNodeFromPassiveView();
         }
-
+        
         passiveView.addAll(samplesToAdd);
     }
 

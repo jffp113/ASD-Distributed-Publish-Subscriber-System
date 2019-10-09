@@ -4,21 +4,22 @@ package client;
 import java.util.Scanner;
 
 public class InteractiveClient {
-    public static final String EXIT = "exit";
-    public static final String SPACE = " ";
-    public static final String SUBSCRIBE = "subscribe";
-    public static final String UNSUBSCRIBE = "unsubscribe";
-    public static final String PUBLISH = "publish";
-    public static final String HELP = "help";
-    public static final String HELP_TEXT = "subscribe <topic> - subscribe to a topic.\n" +
+
+    private static final String EXIT = "exit";
+    private static final String SPACE = " ";
+    private static final String SUBSCRIBE = "subscribe";
+    private static final String UNSUBSCRIBE = "unsubscribe";
+    private static final String PUBLISH = "publish";
+    private static final String HELP = "help";
+    private static final String HELP_TEXT = "subscribe <topic> - subscribe to a topic.\n" +
             "unsubscribe <topic> - unsubscribe to a topic.\n" +
             "publish <topic> <message> - publish a message in the given topic.\n" +
             "exit - shutdown the client.";
-    public static final String SUBSCRIBE_TEXT = "Subscribing: %s\n";
-    public static final String UNSUBSCRIBE_TEXT = "Unsubscribing: %s\n";
-    public static final String PUBLISH_TEXT = "Publishing in topic %s: %s\n";
-    public static final String INVALID_COMMAND = "Invalid command type help.";
-    public static String EMPTY_STRING = "";
+    private static final String SUBSCRIBE_TEXT = "Subscribing: %s\n";
+    private static final String UNSUBSCRIBE_TEXT = "Unsubscribing: %s\n";
+    private static final String PUBLISH_TEXT = "Publishing in topic %s: %s\n";
+    private static final String INVALID_COMMAND = "Invalid command type help.";
+    private static String EMPTY_STRING = "";
 
     public static void main(String[] args) throws Exception {
         Client c = new Client(args);
@@ -28,8 +29,7 @@ public class InteractiveClient {
             input = in.nextLine();
             String[] input_array = input.split(SPACE);
             String command = input_array[0],
-                    topic = input_array.length >= 2 ? input_array[1] : EMPTY_STRING,
-                    message = input_array.length >= 3 ? input_array[2] : EMPTY_STRING;
+                    topic = input_array.length >= 2 ? input_array[1] : EMPTY_STRING;
             switch (command) {
                 case SUBSCRIBE:
                     System.out.printf(SUBSCRIBE_TEXT, topic);
@@ -40,8 +40,8 @@ public class InteractiveClient {
                     c.unsubscribe(topic);
                     break;
                 case PUBLISH:
-                    System.out.printf(PUBLISH_TEXT, topic, joinArray(input_array));
-                    c.publish(topic, joinArray(input_array));
+                    System.out.printf(PUBLISH_TEXT, topic, getMessage(input_array));
+                    c.publish(topic, getMessage(input_array));
                     break;
                 case HELP:
                     System.out.println(HELP_TEXT);
@@ -52,13 +52,13 @@ public class InteractiveClient {
         }
     }
 
-    private static String joinArray(String[] input_array){
+    private static String getMessage(String[] input_array){
         StringBuffer buf = new StringBuffer();
 
         buf.append(input_array[2]);
 
         for(int i = 3; i < input_array.length; i++){
-            buf.append(" ");
+            buf.append(SPACE);
             buf.append(input_array[i]);
         }
 

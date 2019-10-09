@@ -76,7 +76,8 @@ public class ReBCastProtocolMessage extends ProtocolMessage {
 
         @Override
         public int serializedSize(ReBCastProtocolMessage m) {
-            return (m.midList.size() + 1)*2*Long.BYTES + 6 + Integer.BYTES;
+            int hostSize=6;
+            return (m.midList.size() + 1)*2*Long.BYTES + hostSize + Integer.BYTES;
         }
     };
 }
