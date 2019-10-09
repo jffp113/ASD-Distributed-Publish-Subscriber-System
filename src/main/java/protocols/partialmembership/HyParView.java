@@ -205,7 +205,9 @@ public class HyParView extends GenericProtocol implements INodeListener {
             if (ttl == prwl) {
                 addNodeToPassiveView(newNode);
             }
-            Host neigh = selectRandomFromView(activeView, sender);
+            Host neigh = null;
+            if(!activeView.isEmpty())
+                neigh = selectRandomFromView(activeView, sender);
             if (neigh != null) {
                 sendMessage(new ForwardJoinMessage(newNode, myself, ttl - 1), neigh);
             }
@@ -217,7 +219,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
         int ttl = shuffleMessage.decTtl();
 
-        if (ttl > 0 && activeView.size() > 1) {
+        if (ttl > 0 && activeView.size() > 1 && !activeView.isEmpty()) {
             Host neigh = selectRandomFromView(activeView, shuffleMessage.getSender());
             sendMessage(shuffleMessage, neigh);
         } else {
@@ -337,9 +339,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
     }
 
     private Host selectRandomFromView(Set<Host> view, Host notToPick) {
-        if(activeView.isEmpty())
-            return null;
-
         List<Host> lotto = new ArrayList<>(view);
 
         if (notToPick != null) {
