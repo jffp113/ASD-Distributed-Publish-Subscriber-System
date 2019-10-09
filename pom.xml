@@ -59,8 +59,9 @@
         <dependency>
             <groupId>pt.unl.fct.di.novasys</groupId>
             <artifactId>babel-core</artifactId>
-            <version>0.2-alpha</version>
+            <version>0.3-alpha</version>
         </dependency>
     </dependencies>
+
 
 </project>
