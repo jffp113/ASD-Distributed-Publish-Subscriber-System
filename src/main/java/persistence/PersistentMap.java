@@ -18,10 +18,12 @@ public class PersistentMap<K extends Serializable, V extends Serializable> imple
 
         if (!f.exists()) {
             f.createNewFile();
+            this.out = new ObjectOutputStream(new FileOutputStream(f,true));
         } else {
             fillMap();
+            this.out = new AppendingObjectOutputStream(new FileOutputStream(f,true));
         }
-        this.out = new ObjectOutputStream(new FileOutputStream(f,true));
+
 
     }
 

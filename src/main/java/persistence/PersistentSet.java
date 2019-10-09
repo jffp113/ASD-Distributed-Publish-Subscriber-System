@@ -15,12 +15,15 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         this.set = set;
         f = new File(fileName);
 
-        if (!f.exists())
+        if (!f.exists()) {
             f.createNewFile();
-        else
+            this.out = new ObjectOutputStream(new FileOutputStream(f,true));
+        }
+        else {
             fillSet();
+            this.out = new AppendingObjectOutputStream(new FileOutputStream(f,true));
+        }
 
-        this.out = new ObjectOutputStream(new FileOutputStream(f,true));
     }
 
     private void fillSet() throws Exception {
@@ -32,6 +35,7 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         } catch (IOException e) {
             return;
         }
+
 
     }
 
@@ -70,7 +74,9 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         try {
 
             if (set.add(o)) {
-                out.writeObject(o);
+               out.writeObject(o);
+               out.flush();
+
                 return true;
             }
 
@@ -118,7 +124,7 @@ public class PersistentSet<E extends Serializable> implements Set<E> {
         f.deleteOnExit();
         try {
             f.createNewFile();
-            out = new ObjectOutputStream(new FileOutputStream(f));
+            out = new AppendingObjectOutputStream(new FileOutputStream(f));
         } catch (IOException e) {
             e.printStackTrace();
         }
