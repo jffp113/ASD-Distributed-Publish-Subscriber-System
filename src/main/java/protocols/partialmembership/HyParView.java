@@ -51,7 +51,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
         registerTimerHandler(ShuffleProtocolTimer.TIMERCODE, uponShuffleTimer);
         registerTimerHandler(DebugTimer.TimerCode, uponDebugTimer);
-        registerTimerHandler(FailDetectionTimer.TimerCode, uponFailDelivered);
+        registerTimerHandler(FailDetectionTimer.TimerCode, uponFailDeliver);
 
         registerMessageHandler(JoinMessage.MSG_CODE, uponReceiveJoin, JoinMessage.serializer);
         registerMessageHandler(ForwardJoinMessage.MSG_CODE, uponReceiveForwardJoin, ForwardJoinMessage.serializer);
@@ -69,7 +69,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
     };
 
 
-    private final ProtocolTimerHandler uponFailDelivered = (protocolTimer) -> {
+    private final ProtocolTimerHandler uponFailDeliver = (protocolTimer) -> {
         FailDetectionTimer timer = (FailDetectionTimer)protocolTimer;
         if(!activeView.contains(timer.getHost()))
             nodeDisconnect(timer.getHost());
@@ -113,10 +113,10 @@ public class HyParView extends GenericProtocol implements INodeListener {
         }
     }
 
-    private void tryToConnect(Host notToPickNode){
+    private void tryToConnect(Host notToPick){
         boolean priority = activeView.isEmpty();
 
-        Host toPromote = selectRandomFromView(passiveView,notToPickNode);
+        Host toPromote = selectRandomFromView(passiveView,notToPick);
         System.err.println("Try hard with = " + toPromote);
         sendMessageSideChannel(new JoinMessage(myself,priority),toPromote); //set up a timer TODO
         UUID uuid = setupTimer(new FailDetectionTimer(toPromote),1000);
@@ -126,8 +126,10 @@ public class HyParView extends GenericProtocol implements INodeListener {
     @Override
     public void nodeUp(Host host) {
         System.out.println("UP " + host);
-        addNodeToActiveView(host);
-        passiveView.remove(host);
+        if(!activeView.contains(host)){
+            addNodeToActiveView(host);
+        }
+        //passiveView.remove(host);
     }
 
     @Override
@@ -170,9 +172,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
         Host node = joinMessage.getNode();
         if(joinMessage.isMaxPriority()) {
-                if(isFullActiveView())
-                    dropRandomNodeFromActiveView();
-
                 addNodeToActiveView(node);
                 for (Host h : activeView) {
                     if (!h.equals(node)) {
@@ -280,7 +279,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
             String[] contactSplit = contact.split(":");
             Host host = new Host(InetAddress.getByName(contactSplit[0]), Integer.parseInt(contactSplit[1]));
             addNodeToActiveView(host);
-            sendMessage(new JoinMessage(myself), host);
+            sendMessageSideChannel(new JoinMessage(myself,true), host);
         } catch (UnknownHostException e) {
             // Ignored - contact should exist
             e.printStackTrace();
