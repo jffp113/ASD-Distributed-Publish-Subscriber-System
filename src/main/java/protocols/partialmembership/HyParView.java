@@ -72,12 +72,11 @@ public class HyParView extends GenericProtocol implements INodeListener {
     };
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
-        System.out.println("Active");
+    /*    System.out.println("Active");
         System.out.println(activeView);
         System.out.println("passive");
-        System.out.println(passiveView);
+        System.out.println(passiveView);*/
     };
-
 
     private final ProtocolTimerHandler uponFailDeliver = (protocolTimer) -> {
         FailDetectionTimer timer = (FailDetectionTimer) protocolTimer;
@@ -94,7 +93,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
         cancelTimer(timerMap.remove(host));
         tryToConnect(host);
     };
-
 
     @Override
     public void init(Properties properties) {
@@ -184,6 +182,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
         JoinMessage joinMessage = (JoinMessage) protocolMessage;
 
         Host node = joinMessage.getNode();
+      //  System.out.println("tried to connect with "+node + "priority "+joinMessage.isMaxPriority());
         if (joinMessage.isMaxPriority()) {
             addNodeToActiveView(node);
             sendMessage(new ConnectMessage(myself), node);

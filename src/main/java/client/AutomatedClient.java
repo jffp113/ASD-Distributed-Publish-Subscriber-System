@@ -47,7 +47,7 @@ public class AutomatedClient {
 
         try{
             generateSubscribes();
-            Thread.sleep(1000);
+            Thread.sleep(5000);
             generatePublishes(10);
         }finally {
             killNodes();
@@ -79,9 +79,9 @@ public class AutomatedClient {
             int randomPort = ports.get(r.nextInt(ports.size()));
             ports.add(port);
 
-            output = createNode(randomPort, port);
+            output = createNode(10000, port);
             clients.add(output);
-            Thread.sleep(500);
+            Thread.sleep(1000);
         }
 
     }

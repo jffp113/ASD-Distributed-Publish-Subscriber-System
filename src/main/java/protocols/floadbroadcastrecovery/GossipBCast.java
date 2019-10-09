@@ -108,8 +108,7 @@ public class GossipBCast extends GenericProtocol {
             //Verify If i have all messages from list
             for (UUID id : msg.getMessageUUIDList()) {
                 if (!delivered.contains(id)) {
-                    addNetworkPeer(msg.getInitialHost());  //TODO conexao temporaria
-                    sendMessage(new MessageRequestProtocolMessage(id), msg.getInitialHost());
+                    sendMessageSideChannel(new MessageRequestProtocolMessage(id), msg.getInitialHost());
                 }
             }
 
@@ -120,8 +119,7 @@ public class GossipBCast extends GenericProtocol {
     };
 
     public ProtocolMessageHandler uponMessageRequest = (protocolMessage) -> {
-
-        sendMessage(recoveryMSG.get(((MessageRequestProtocolMessage) protocolMessage).getMessageId()),
+        sendMessageSideChannel(recoveryMSG.get(((MessageRequestProtocolMessage) protocolMessage).getMessageId()),
                 protocolMessage.getFrom());
     };
 
