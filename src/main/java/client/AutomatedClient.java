@@ -63,13 +63,26 @@ public class AutomatedClient {
         try {
             generateSubscribes();
             Thread.sleep(5000);
+            killnodes();
             generatePublishes(10);
+        }catch (Exception e){
+            e.printStackTrace();
         } finally {
             killNodes();
             System.out.println(TEST_COMPLETE);
             System.exit(1);
         }
 
+    }
+
+    private static void killnodes() throws InterruptedException {
+        Random r = new Random(System.currentTimeMillis());
+
+        for(int i = 0; i < 10 ; i++){
+            Process p = processes.remove(Math.abs(r.nextInt() % processes.size()));
+            p.destroy();
+        }
+        Thread.sleep(100);
     }
 
     public static void publisherAuto(PrintWriter c, String topic, String message) {
@@ -97,7 +110,7 @@ public class AutomatedClient {
 
             output = createNode(basePort, port);
             clients.add(output);
-            Thread.sleep(1000);
+            Thread.sleep(5000);
         }
 
     }
@@ -170,5 +183,6 @@ public class AutomatedClient {
 
         }
     }
+
 
 }
