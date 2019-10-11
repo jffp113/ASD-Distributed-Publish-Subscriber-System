@@ -4,10 +4,7 @@ import babel.Babel;
 import utils.PropertiesUtils;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
-import java.util.Random;
+import java.util.*;
 
 public class AutomatedClient {
     // Constants
@@ -15,7 +12,7 @@ public class AutomatedClient {
     private static final String AUTOMATED_CLIENT_CONFIG_PROPERTIES = "src/automated_client.properties";
     private static final String NODES = "nodes";
     private static final String TOPICS = "topics";
-    private static final String NODES_TO_PUBLISH="nodes_to_publish";
+    private static final String NODES_TO_PUBLISH = "nodes_to_publish";
     private static final String KILL_INIT = "kill_init";
     private static final String KILL_PERIOD = "kill_period";
     private static final String PUBLISH_CMD = "publish %s %s time=%d\n";
@@ -27,32 +24,32 @@ public class AutomatedClient {
     private static final String AUTOMATED_CLIENT_OUTPUT_FILE = "./automatedClientOutput/%d.txt";
     private static final String ERROR_READING_FILE_MSG = "Error reading file: %s";
     private static final String DEFAULT_TOPIC = "all";
+    private static final String FAILURE_RATE = "failure_rate";
+    private static final String FAILURE_TIMER = "failure_timer";
+    private static final int basePort = 10000;
 
     // Variables
-    private static List<PrintWriter> clients;
-    private static List<Process> processes;
-    private static int nodes;
-    private static int nodesToPublish;
-    private static int numberTopics;
-    private static int numberOfMessages;
+    private static Map<Integer, PrintWriter> clients;
+    private static Map<Integer, Process> processes;
+    private static int nodes, nodesToPublish, numberTopics, numberOfMessages, killPeriod, killInit, publishes, failureRate, failureTimer;
     private static List<Integer> ports;
     private static List<String> topics;
-    private static int killPeriod, killInit;
-    private static int publishes;
 
     public static void main(String[] args) throws Exception {
         Babel.getInstance().loadConfig(NETWORK_CONFIG_PROPERTIES, args);
         Properties properties = Babel.getInstance().loadConfig(AUTOMATED_CLIENT_CONFIG_PROPERTIES, args);
-        nodes = PropertiesUtils.getPropertyAsInt(properties,NODES);
-        clients = new ArrayList<>(nodes);
+        nodes = PropertiesUtils.getPropertyAsInt(properties, NODES);
+        clients = new HashMap<>(nodes);
         ports = new ArrayList<>(nodes);
-        numberTopics = PropertiesUtils.getPropertyAsInt(properties,TOPICS);
+        numberTopics = PropertiesUtils.getPropertyAsInt(properties, TOPICS);
         topics = new ArrayList<>(numberTopics);
-        processes = new ArrayList<>(nodes);
-        killInit = PropertiesUtils.getPropertyAsInt(properties,KILL_INIT);
-        killPeriod = PropertiesUtils.getPropertyAsInt(properties,KILL_PERIOD);
-        numberOfMessages = PropertiesUtils.getPropertyAsInt(properties,MESSAGES);
-        nodesToPublish = PropertiesUtils.getPropertyAsInt(properties,NODES_TO_PUBLISH);
+        processes = new HashMap<>(nodes);
+        killInit = PropertiesUtils.getPropertyAsInt(properties, KILL_INIT);
+        killPeriod = PropertiesUtils.getPropertyAsInt(properties, KILL_PERIOD);
+        numberOfMessages = PropertiesUtils.getPropertyAsInt(properties, MESSAGES);
+        nodesToPublish = PropertiesUtils.getPropertyAsInt(properties, NODES_TO_PUBLISH);
+        failureRate = PropertiesUtils.getPropertyAsInt(properties, FAILURE_RATE);
+        failureTimer = PropertiesUtils.getPropertyAsInt(properties, FAILURE_TIMER);
         publishes = 0;
 
         initializeNodes();
@@ -63,7 +60,16 @@ public class AutomatedClient {
         try {
             generateSubscribes();
             Thread.sleep(5000);
-            generatePublishes(10);
+            generatePublishes(nodesToPublish);
+            Thread.sleep(15000);
+            List<Integer> nodesCrashed = crashNodes();
+            generatePublishes(nodes-nodesCrashed.size());
+            for (Integer i : nodesCrashed) {
+                PrintWriter out = createNode(basePort, i);
+                clients.put(i, out);
+            }
+            Thread.sleep(2000);
+            generatePublishes(nodesToPublish);
         } finally {
             killNodes();
             System.out.println(TEST_COMPLETE);
@@ -85,18 +91,17 @@ public class AutomatedClient {
     }
 
     public static void initializeNodes() throws Exception {
-        Random r = new Random(System.currentTimeMillis());
-        int basePort = 10000;
         int port = basePort + 1;
+        // contacto porto
         PrintWriter output = createNode(port, basePort);
         ports.add(basePort);
-        clients.add(output);
+        clients.put(basePort, output);
         for (int i = 1; i < nodes; i++) {
             port = basePort + i;
             ports.add(port);
 
             output = createNode(basePort, port);
-            clients.add(output);
+            clients.put(basePort, output);
             Thread.sleep(1000);
         }
 
@@ -109,13 +114,13 @@ public class AutomatedClient {
         }
     }
 
-    public static PrintWriter createNode(final int contact, final int port) throws IOException, InterruptedException {
+    public static PrintWriter createNode(final int contact, final int port) throws IOException {
 
         Process process = Runtime.getRuntime()
                 .exec(String.format(COMMAND, contact, port));
         PrintWriter out = new PrintWriter(new OutputStreamWriter(process.getOutputStream()), true);
 
-        processes.add(process);
+        processes.put(port, process);
 
         Thread t = new Thread(() -> {
             File f = new File(String.format(AUTOMATED_CLIENT_OUTPUT_FILE, port));
@@ -146,14 +151,14 @@ public class AutomatedClient {
 
     public static void killNodes() throws InterruptedException {
         Thread.sleep(killInit);
-        for (Process p : processes) {
+        for (Process p : processes.values()) {
             p.destroy();
             Thread.sleep(killPeriod);
         }
     }
 
     public static void generateSubscribes() {
-        for (PrintWriter c : clients) {
+        for (PrintWriter c : clients.values()) {
             subscriberAuto(c, DEFAULT_TOPIC);
         }
     }
@@ -169,6 +174,23 @@ public class AutomatedClient {
             }
 
         }
+    }
+
+   private static List<Integer> crashNodes() throws InterruptedException {
+        int nodesToFail = nodes * (failureRate / 100);
+        List<Integer> nodesCrashed = new ArrayList<>(nodesToFail);
+        Random r = new Random();
+        for (int i = 0; i < nodesToFail; i++) {
+            int index = r.nextInt(clients.size());
+            int port = ports.get(index);
+            PrintWriter out = clients.get(port);
+            out.close();
+            Process process = processes.get(port);
+            process.destroy();
+            nodesCrashed.add(port);
+            Thread.sleep(failureTimer);
+        }
+        return nodesCrashed;
     }
 
 }
