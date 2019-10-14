@@ -63,8 +63,9 @@ public class AutomatedClient {
         try {
             generateSubscribes();
             Thread.sleep(5000);
-            killnodes();
+            kill();
             generatePublishes(10);
+            Thread.sleep(20000);
         }catch (Exception e){
             e.printStackTrace();
         } finally {
@@ -75,12 +76,15 @@ public class AutomatedClient {
 
     }
 
-    private static void killnodes() throws InterruptedException {
-        Random r = new Random(System.currentTimeMillis());
+    private static void kill() throws InterruptedException {
+        Random rd = new Random(System.currentTimeMillis());
 
-        for(int i = 0; i < 10 ; i++){
-            Process p = processes.remove(Math.abs(r.nextInt() % processes.size()));
+        for(int i = 0; i < 5 ; i++){
+            int r = Math.abs(rd.nextInt() % processes.size());
+            Process p = processes.remove(r);
+            clients.remove(r);
             p.destroy();
+            Thread.sleep(100);
         }
         Thread.sleep(100);
     }
