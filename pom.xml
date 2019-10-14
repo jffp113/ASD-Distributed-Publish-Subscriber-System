@@ -21,6 +21,48 @@
                     <target>8</target>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                        <configuration>
+                            <archive>
+                                <manifest>
+                                    <mainClass>
+                                        client.InteractiveClient
+                                    </mainClass>
+                                </manifest>
+                            </archive>
+                            <descriptorRefs>
+                                <descriptorRef>jar-with-dependencies</descriptorRef>
+                            </descriptorRefs>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>com.spotify</groupId>
+                <artifactId>dockerfile-maven-plugin</artifactId>
+                <version>1.4.3</version>
+                <executions>
+                    <execution>
+                        <id>default</id>
+                        <goals>
+                            <goal>build</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <repository>docker.io/pcmax113/asd1</repository>
+                    <tag>latest</tag>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 
@@ -35,8 +77,9 @@
         <dependency>
             <groupId>pt.unl.fct.di.novasys</groupId>
             <artifactId>babel-core</artifactId>
-            <version>0.1-alpha</version>
+            <version>0.3.5-alpha</version>
         </dependency>
     </dependencies>
+
 
 </project>
