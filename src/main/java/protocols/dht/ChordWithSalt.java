@@ -28,7 +28,9 @@ public class ChordWithSalt extends GenericProtocol {
 
     public ChordWithSalt(String protoName, short protoID, INetwork net) throws Exception {
         super(protoName, protoID, net);
+
         registerRequestHandler(BCastRequest.REQUEST_ID, uponRouteRequest);
+
         registerMessageHandler(FingerTableResponseMessage.MSG_CODE, uponFingerTableResponseMessage, BCastProtocolMessage.serializer);
         registerMessageHandler(FingerTableRequestMessage.MSG_CODE, uponFingerTableRequestMessage, BCastProtocolMessage.serializer);
         registerMessageHandler(FindSuccessorRequestMessage.MSG_CODE, uponFindSuccessorRequestMessage, FindSuccessorRequestMessage.serializer);
@@ -38,12 +40,12 @@ public class ChordWithSalt extends GenericProtocol {
 
     @Override
     public void init(Properties properties) {
+        myId = Util.calculateID(myself.toString());
         fingers = new ArrayList<>(Util.fingers);
         try {
 
             String[] contactSplit = properties.getProperty("Contact").split(":");
             Host host = new Host(InetAddress.getByName(contactSplit[0]), Integer.parseInt(contactSplit[1]));
-
             sendMessageSideChannel(new FindSuccessorRequestMessage(myId, myself), host);
         } catch (UnknownHostException e) {
             e.printStackTrace();
@@ -65,8 +67,9 @@ public class ChordWithSalt extends GenericProtocol {
 
     private final ProtocolMessageHandler uponFingerTableResponseMessage = (protocolMessage) -> {
         FingerTableResponseMessage responseMessage = (FingerTableResponseMessage) protocolMessage;
-        initFingers(responseMessage.getFingers());
+        initFingerTable(responseMessage.getFingers());
         updateOthers();
+
     };
 
     private final ProtocolMessageHandler uponFingerTableRequestMessage = (protocolMessage) -> {
@@ -89,7 +92,11 @@ public class ChordWithSalt extends GenericProtocol {
     };
 
     private final ProtocolMessageHandler uponFindSuccessorResponseMessage = (protocolMessage) -> {
-
+        FindSuccessorResponseMessage message = (FindSuccessorResponseMessage) protocolMessage;
+        FingerEntry successor = fingers.get(0);
+        successor.h = message.getFrom();
+        successor.suc = message.getNodeId();
+        join(successor.h);
     };
 
     private FingerEntry closestPrecedingNode(int nodeId) {
@@ -104,10 +111,18 @@ public class ChordWithSalt extends GenericProtocol {
 
 
     private void updateOthers() {
+        for (int i = 1; i <= fingers.size(); i++) {
+            FingerEntry p = closestPrecedingNode(Util.calculateFinger(myId, i));
+
+
+        }
+
 
     }
 
-    private void initFingers(List<FingerEntry> successorFingerTable) {
+    private void initFingerTable(List<FingerEntry> successorFingerTable) {
+        
+
 
     }
 

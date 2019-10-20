@@ -63,18 +63,13 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
     private final ProtocolMessageHandler uponConnect = (protocolMessage) -> {
         ConnectMessage msg = (ConnectMessage) protocolMessage;
-        System.out.println("UP " + msg.getNode());
+
         if (!activeView.contains(msg.getNode())) {
             addNodeToActiveView(msg.getNode());
         }
-        //passiveView.remove(host);
     };
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
-    /*    System.out.println("Active");
-        System.out.println(activeView);
-        System.out.println("passive");
-        System.out.println(passiveView);*/
     };
 
     private final ProtocolTimerHandler uponFailDeliver = (protocolTimer) -> {
@@ -119,7 +114,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
             removeNetworkPeer(host);
             addNodeToPassiveView(host);
             tryToConnect(host);
-            //addNodeToActiveView(toPromote);
         }
     }
 
@@ -129,15 +123,15 @@ public class HyParView extends GenericProtocol implements INodeListener {
         Host toPromote = selectRandomFromView(passiveView, notToPick);
         if (toPromote == null)
             return;
-        System.err.println("Try hard with = " + toPromote);
-        sendMessageSideChannel(new JoinMessage(myself, priority), toPromote); //set up a timer TODO
+
+        sendMessageSideChannel(new JoinMessage(myself, priority), toPromote);
         UUID uuid = setupTimer(new FailDetectionTimer(toPromote), 800);
         timerMap.put(toPromote, uuid);
     }
 
     @Override
     public void nodeUp(Host host) {
-
+        // Nothing to do here.
     }
 
     @Override
@@ -233,7 +227,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
         if (ttl > 0 && activeView.size() > 1 && !activeView.isEmpty()) {
             Host neigh = selectRandomFromView(activeView, shuffleMessage.getSender());
-            if (neigh != null){
+            if (neigh != null) {
                 sendMessage(shuffleMessage, neigh);
             }
         } else {
@@ -397,7 +391,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
 
         Iterator<Host> it = sentNodes.iterator();
         while (maxPVSize - passiveView.size() < nodesToAdd) {
-            if (!it.hasNext()){
+            if (!it.hasNext()) {
                 break;
             }
 
@@ -407,7 +401,7 @@ public class HyParView extends GenericProtocol implements INodeListener {
         while (maxPVSize - passiveView.size() < nodesToAdd) {
             dropRandomNodeFromPassiveView();
         }
-        
+
         passiveView.addAll(samplesToAdd);
     }
 

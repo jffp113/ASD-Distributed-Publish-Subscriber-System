@@ -42,7 +42,6 @@ public class GossipBCast extends GenericProtocol {
     private int fanout;
 
     //Protocol State
-    //TODO
     private Set<UUID> delivered;
     private Map<UUID, ProtocolMessage> pending;
 
@@ -192,7 +191,7 @@ public class GossipBCast extends GenericProtocol {
 
     /**
      * When the layer below responses with the peers
-     * connectected the message will be broadcast to them
+     * connected the message will be broadcast to them
      */
     private ProtocolMessageHandler uponBcastProtocolMessage = (protocolMessage) -> {
         BCastProtocolMessage msg = (BCastProtocolMessage) protocolMessage;
