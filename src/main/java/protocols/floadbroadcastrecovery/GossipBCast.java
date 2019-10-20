@@ -133,7 +133,7 @@ public class GossipBCast extends GenericProtocol {
     }
 
     /**
-     * This method will request the layer below the peers to broadcast the message
+     * This method will requests the layer below the peers to broadcast the message
      * and save the message for broadcasting later
      *
      * @param msg

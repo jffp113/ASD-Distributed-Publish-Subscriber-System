@@ -46,7 +46,7 @@ public class Client implements INotificationConsumer {
     }
 
     /**
-     * Sends a subscribe request to the PublishSubscribe protocol.
+     * Sends a subscribe requests to the PublishSubscribe protocol.
      *
      * @param topic to be subscribed.
      */
@@ -56,7 +56,7 @@ public class Client implements INotificationConsumer {
     }
 
     /**
-     * Sends a unsubscribe request to the PublishSubscribe protocol.
+     * Sends a unsubscribe requests to the PublishSubscribe protocol.
      *
      * @param topic to be unsubscribed.
      */
@@ -66,7 +66,7 @@ public class Client implements INotificationConsumer {
     }
 
     /**
-     * Sends a publish request to the PublishSubscribe protocol.
+     * Sends a publish requests to the PublishSubscribe protocol.
      *
      * @param topic   where to publish.
      * @param message to publish.

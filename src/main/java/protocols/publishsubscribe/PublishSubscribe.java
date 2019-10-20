@@ -56,7 +56,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         }
     }
     /**
-     * Sends a publish request to the underlying protocol.
+     * Sends a publish requests to the underlying protocol.
      */
     private ProtocolRequestHandler uponPublishRequest = (publishRequest) -> {
         PublishRequest pRequest = (PublishRequest) publishRequest;

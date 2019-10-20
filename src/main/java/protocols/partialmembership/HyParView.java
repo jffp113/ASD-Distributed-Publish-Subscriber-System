@@ -46,7 +46,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
         super(ALG_NAME, PROTOCOL_ID, net);
 
         registerNodeListener(this);
-
         registerRequestHandler(GetSampleRequest.REQUEST_ID, uponGetMembershipRequest);
 
         registerTimerHandler(ShuffleProtocolTimer.TIMERCODE, uponShuffleTimer);
