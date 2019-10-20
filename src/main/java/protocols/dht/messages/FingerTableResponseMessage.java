@@ -13,7 +13,7 @@ import java.util.List;
 
 public class FingerTableResponseMessage extends ProtocolMessage {
 
-    public final static short MSG_CODE = 22871;
+    public final static short MSG_CODE = 23481;
     private List<FingerEntry> fingers;
     private Host predecessor;
 

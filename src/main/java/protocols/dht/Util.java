@@ -1,8 +1,10 @@
 package protocols.dht;
 
+import network.Host;
+
 public class Util {
 
-    private static final int k = 64;
+    public static final int k = 64;
     public static final int fingers = 8;
 
     public static int calculateFinger(int myId, int iFinger){
@@ -14,4 +16,7 @@ public class Util {
         return Math.abs(seed.hashCode() % k);
     }
 
+    public static int calculateIDByHost(Host h){
+        return calculateID(h.toString());
+    }
 }
