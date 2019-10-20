@@ -5,6 +5,7 @@ import io.netty.buffer.ByteBuf;
 import network.Host;
 import network.ISerializer;
 import protocols.dht.FingerEntry;
+
 import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.List;
@@ -16,10 +17,18 @@ public class FingerTableResponseMessage extends ProtocolMessage {
     private List<FingerEntry> fingers;
     private Host predecessor;
 
-    public FingerTableResponseMessage(List<FingerEntry> fingers,Host predecessor) {
+    public FingerTableResponseMessage(List<FingerEntry> fingers, Host predecessor) {
         super(FingerTableResponseMessage.MSG_CODE);
         this.fingers = fingers;
         this.predecessor = predecessor;
+    }
+
+    public Host getPredecessor() {
+        return predecessor;
+    }
+
+    public List<FingerEntry> getFingers() {
+        return fingers;
     }
 
 
