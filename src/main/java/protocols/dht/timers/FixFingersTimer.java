@@ -17,6 +17,10 @@ public class FixFingersTimer extends ProtocolTimer {
         return next;
     }
 
+    public void setNext(int next){
+        this.next = next;
+    }
+
     @Override
     public Object clone() {
         return this;

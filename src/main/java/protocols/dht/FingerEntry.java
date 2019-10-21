@@ -7,6 +7,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 public class FingerEntry {
+
+
     public int start;
     public int end;
     public int hostId;
@@ -32,5 +34,11 @@ public class FingerEntry {
 
     public static int serializedSize() {
         return 3 * Integer.BYTES + 6;
+    }
+
+
+    @Override
+    public String toString() {
+        return String.format("Start: %d End: %d hostId: %d host %s", start,end,hostId,host);
     }
 }

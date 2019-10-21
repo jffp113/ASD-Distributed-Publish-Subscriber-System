@@ -1,46 +1,30 @@
+import babel.Babel;
+import network.INetwork;
 import protocols.dht.ChordWithSalt;
+import protocols.floadbroadcastrecovery.GossipBCast;
+import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
+import protocols.partialmembership.HyParView;
+import protocols.publishsubscribe.PublishSubscribe;
+import protocols.publishsubscribe.notifications.PBDeliver;
+
+import java.util.Properties;
 
 public class EmptyTest {
+    private static Properties properties;
+    private static final String NETWORK_CONFIG_PROPERTIES = "src/network_config.properties";
+    private static final String NOTIFICATION_FORMAT = "Process %s received event at %d: Topic: %s Message: %s\n";
+    private static final String LISTEN_BASE_PORT = "listen_base_port";
 
-    private static boolean isIdBetween(int nodeId, int n, int succesor, int k) {
+    public static void main(String[] args) throws Exception {
+        Babel babel = Babel.getInstance();
+        properties = babel.loadConfig(NETWORK_CONFIG_PROPERTIES, args);
+        INetwork net = babel.getNetworkInstance();
 
-        if (nodeId > n && nodeId <= succesor)
-            return true;
-        if (nodeId < n && nodeId <= succesor)
-            return true;
-        if (nodeId > n && nodeId >= succesor)
-            return true;
-
-        return false;
-    }
-
-    public static boolean isbeetween(int n ,int nodeiD,int sucessor, int k){
-        if (n > k) return false;
-        while(true){
-            nodeiD = (nodeiD + 1) % k;
-            if(nodeiD == n)
-                return true;
-            if(nodeiD == sucessor)
-                return false;
-        }
+        ChordWithSalt hyParView = new ChordWithSalt(net);
+        hyParView.init(properties);
+        babel.registerProtocol(hyParView);
 
 
-    }
-
-    public static void main(String[] args) {
-        /*System.out.println(isIdBetween(2,1,4)) ;
-        System.out.println(isIdBetween(1,7,2));
-        System.out.println(isIdBetween(8,7,2));
-        System.out.println(isIdBetween(6,7,2));
-        System.out.println(isIdBetween(8,1,4));*/
-
-        System.out.println(isbeetween(2,1,4,9)) ;
-        System.out.println(isbeetween(1,7,2,9));
-        System.out.println(isbeetween(8,7,2,9));
-        System.out.println(isbeetween(6,7,2,9));
-        System.out.println(isbeetween(8,1,4,9));
-
-
-        System.out.println(Math.abs("localhost:8004".hashCode()) % 1000);
+        babel.start();
     }
 }

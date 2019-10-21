@@ -11,4 +11,9 @@ public class PropertiesUtils {
     public static int getPropertyAsInt(Properties properties, String key) {
         return Integer.parseInt(getPropertyAsString(properties, key));
     }
+
+    public static boolean getPropertyAsBool(Properties properties, String key) {
+        return Boolean.valueOf(getPropertyAsString(properties, key));
+    }
+
 }

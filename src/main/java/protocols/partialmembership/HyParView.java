@@ -49,7 +49,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
         registerRequestHandler(GetSampleRequest.REQUEST_ID, uponGetMembershipRequest);
 
         registerTimerHandler(ShuffleProtocolTimer.TIMERCODE, uponShuffleTimer);
-        registerTimerHandler(DebugTimer.TimerCode, uponDebugTimer);
         registerTimerHandler(FailDetectionTimer.TimerCode, uponFailDeliver);
 
         registerMessageHandler(JoinMessage.MSG_CODE, uponReceiveJoin, JoinMessage.serializer);
@@ -67,9 +66,6 @@ public class HyParView extends GenericProtocol implements INodeListener {
         if (!activeView.contains(msg.getNode())) {
             addNodeToActiveView(msg.getNode());
         }
-    };
-
-    private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
     };
 
     private final ProtocolTimerHandler uponFailDeliver = (protocolTimer) -> {
