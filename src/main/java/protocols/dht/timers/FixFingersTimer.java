@@ -6,19 +6,8 @@ public class FixFingersTimer extends ProtocolTimer {
 
     public static final short TimerCode = 1031;
 
-    private int next;
-
-    public FixFingersTimer(int next) {
+    public FixFingersTimer() {
         super(TimerCode);
-        this.next = next;
-    }
-
-    public int getNext() {
-        return next;
-    }
-
-    public void setNext(int next){
-        this.next = next;
     }
 
     @Override

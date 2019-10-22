@@ -42,7 +42,7 @@ public class ChordWithSalt extends GenericProtocol {
     private int next;
 
     public ChordWithSalt(INetwork net) throws Exception {
-        super(PROTOCOL_NAME,PROTOCOL_ID,  net);
+        super(PROTOCOL_NAME, PROTOCOL_ID, net);
 
         registerRequestHandler(BCastRequest.REQUEST_ID, uponRouteRequest);
 
@@ -56,15 +56,16 @@ public class ChordWithSalt extends GenericProtocol {
         registerMessageHandler(FindPredecessorReplyMessage.MSG_CODE, uponFindPredecessorReplyMessage, FindPredecessorReplyMessage.serializer);
         registerMessageHandler(NotifyPredecessorMessage.MSG_CODE, uponNotifyPredecessorMessage, NotifyPredecessorMessage.serializer);
         registerMessageHandler(FindFingerSuccessorReplyMessage.MSG_CODE, uponFindFingerSuccessorReplyMessage, FindFingerSuccessorReplyMessage.serializer);
+        registerMessageHandler(FindFingerSuccessorRequestMessage.MSG_CODE, uponFindFingerSuccessorRequestMessage, FindFingerSuccessorRequestMessage.serializer);
 
     }
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
         System.out.println("Debug:");
         System.out.println(myId);
-        System.out.println("Predecessor: "+predecessor);
-        System.out.println("Successor: "+successor);
-        for(FingerEntry f : fingers) {
+        System.out.println("Predecessor: " + predecessor);
+        System.out.println("Successor: " + successor);
+        for (FingerEntry f : fingers) {
             System.out.println(f);
         }
     };
@@ -76,14 +77,14 @@ public class ChordWithSalt extends GenericProtocol {
             k = (int) Math.pow(2, m);
             myId = generateId();
             fingers = new ArrayList<>(m);
-            this.next = 1;
+            this.next = 0;
             String contactString = PropertiesUtils.getPropertyAsString(properties, CONTACT);
             createRing();
-            if(PropertiesUtils.getPropertyAsBool(properties,"debug")) {
+            if (PropertiesUtils.getPropertyAsBool(properties, "debug")) {
                 setupPeriodicTimer(new DebugTimer(), 1000, 3000);
             }
 
-            if(contactString != null){
+            if (contactString != null) {
                 String[] contactSplit = contactString.split(":");
                 Host contact = new Host(InetAddress.getByName(contactSplit[0]), Integer.parseInt(contactSplit[1]));
                 join(contact);
@@ -92,7 +93,7 @@ public class ChordWithSalt extends GenericProtocol {
 
             setupPeriodicTimer(new StabilizeTimer(), PropertiesUtils.getPropertyAsInt(properties, STABILIZE_INIT),
                     PropertiesUtils.getPropertyAsInt(properties, STABILIZE_PERIOD));
-            setupPeriodicTimer(new FixFingersTimer(0),
+            setupPeriodicTimer(new FixFingersTimer(),
                     PropertiesUtils.getPropertyAsInt(properties, FIX_FINGERS_INIT),
                     PropertiesUtils.getPropertyAsInt(properties, FIX_FINGERS_PERIOD));
 
@@ -102,20 +103,33 @@ public class ChordWithSalt extends GenericProtocol {
     }
 
     private void join(Host node) {
-        predecessor = myself;
-        sendMsgIfNotMe(new FindSuccessorRequestMessage(myId, myself), node);
+        sendMessageSideChannel(new FindSuccessorRequestMessage(myId, myself), node);
     }
 
     private void createRing() {
-        predecessor = myself;
-        successor = myself;
+        predecessor = null;
 
         for (int i = 0; i < m; i++) {
             int begin = calculateFinger(myId, i);
-            int end = calculateFinger(myId, i+1);
-            fingers.add(i, new FingerEntry(begin, end, myId, myself));
+            fingers.add(i, new FingerEntry(begin, myId, myself));
         }
+
+        changeSuccessor(myself);
     }
+
+    private final ProtocolMessageHandler uponFindFingerSuccessorRequestMessage = (protocolMessage) -> {
+        FindFingerSuccessorRequestMessage message = (FindFingerSuccessorRequestMessage) protocolMessage;
+        int nodeId = message.getNodeId();
+        int successorId = calculateId(this.successor.toString());
+
+        if (isIdBetween(nodeId, myId, successorId, true)) {
+            sendMessageSideChannel(new FindFingerSuccessorReplyMessage(successor, message.getNext()), message.getRequesterNode());
+        } else {
+            Host closestPrecedingNode = closestPrecedingNode(nodeId);
+            if (!closestPrecedingNode.equals(myself))
+                sendMessageSideChannel(message, closestPrecedingNode);
+        }
+    };
 
     private final ProtocolMessageHandler uponFindFingerSuccessorReplyMessage = (protocolMessage) -> {
         FindFingerSuccessorReplyMessage message = (FindFingerSuccessorReplyMessage) protocolMessage;
@@ -126,26 +140,24 @@ public class ChordWithSalt extends GenericProtocol {
     };
 
     private final ProtocolTimerHandler uponFixFingers = (protocolTimer) -> {
-        this.next = next++;
-        if (next == m) {
+        if (++next == m) {
             next = 1;
-
-            FingerEntry finger = fingers.get(next);
-            int successorToFindId = calculateFinger(myId,next);
-            sendMsgIfNotMe(new FindSuccessorRequestMessage(successorToFindId, myself, next)
-                    , finger.host);
         }
+
+        FingerEntry finger = fingers.get(next);
+        int successorToFindId = calculateFinger(myId, next);
+        sendMessageSideChannel(new FindFingerSuccessorRequestMessage(successorToFindId, myself, next), finger.host);
     };
 
     //TODO: this is whewww make it better plsdsdsadsad
     private final ProtocolMessageHandler uponNotifyPredecessorMessage = (protocolMessage) -> {
         int candidate = calculateId(protocolMessage.getFrom().toString());
 
-        if (predecessor.equals(myself)) {
+        if (predecessor == null) {
             predecessor = protocolMessage.getFrom();
         } else {
             int predecessorId = calculateId(predecessor.toString());
-            if (isIdBetween(candidate, predecessorId, myId - 1)) {
+            if (isIdBetween(candidate, predecessorId, myId, false)) {
                 predecessor = protocolMessage.getFrom();
             }
         }
@@ -153,28 +165,34 @@ public class ChordWithSalt extends GenericProtocol {
     };
 
     private final ProtocolMessageHandler uponFindPredecessorRequestMessage = (protocolMessage) -> {
-        sendMsgIfNotMe(new FindPredecessorReplyMessage(predecessor), protocolMessage.getFrom());
+        Host predecessorToSend = predecessor;
+        if (predecessorToSend == null) {
+            predecessorToSend = myself;
+        }
+        sendMessageSideChannel(new FindPredecessorReplyMessage(predecessorToSend), protocolMessage.getFrom());
     };
 
     private final ProtocolMessageHandler uponFindPredecessorReplyMessage = (protocolMessage) -> {
-//        if(protocolMessage.getFrom().compareTo(myself) == 0)
-//            return;
 
         FindPredecessorReplyMessage message = (FindPredecessorReplyMessage) protocolMessage;
         Host temp = message.getPredecessor();
-        int tempId = calculateId(temp.toString());
-        int successorId = calculateId(successor.toString());
+        if (temp != null) {
+            int tempId = calculateId(temp.toString());
+            int successorId = calculateId(successor.toString());
 
-        if (isIdBetween(tempId, myId, successorId - 1)) {
-            successor = temp;
+            if (successorId == myId || isIdBetween(tempId, myId, successorId, false)) {
+                changeSuccessor(temp);
+
+            }
         }
 
-        sendMsgIfNotMe(new NotifyPredecessorMessage(), successor);
+        if (!successor.equals(myself))
+            sendMessageSideChannel(new NotifyPredecessorMessage(), successor);
     };
 
 
     private final ProtocolTimerHandler uponStabilize = (protocolTimer) -> {
-        sendMsgIfNotMe(new FindPredecessorRequestMessage(), successor);
+        sendMessageSideChannel(new FindPredecessorRequestMessage(), successor);
     };
 
     private final ProtocolMessageHandler uponFindSuccessorRequestMessage = (protocolMessage) -> {
@@ -182,21 +200,20 @@ public class ChordWithSalt extends GenericProtocol {
         int nodeId = message.getNodeId();
         int successorId = calculateId(this.successor.toString());
 
-        if (isIdBetween(nodeId, myId, successorId)) {
-            ProtocolMessage m = message.getNext() != -1 ?
-                    new FindFingerSuccessorReplyMessage(successor, message.getNext()) :
-                    new FindSuccessorResponseMessage(successor);
-            sendMsgIfNotMe(m, message.getRequesterNode());
+        if (isIdBetween(nodeId, myId, successorId, true)) {
+            sendMessageSideChannel(new FindSuccessorResponseMessage(successor), message.getRequesterNode());
         } else {
             Host closestPrecedingNode = closestPrecedingNode(nodeId);
-            sendMsgIfNotMe(message, closestPrecedingNode);
+            if (!closestPrecedingNode.equals(myself))
+                sendMessageSideChannel(message, closestPrecedingNode);
+            else
+                sendMessageSideChannel(new FindSuccessorResponseMessage(myself), message.getRequesterNode());
         }
     };
 
     private final ProtocolMessageHandler uponFindSuccessorResponseMessage = (protocolMessage) -> {
         FindSuccessorResponseMessage message = (FindSuccessorResponseMessage) protocolMessage;
-        successor = message.getSuccessor();
-        fingers.get(0).host = message.getSuccessor();
+        changeSuccessor(message.getSuccessor());
     };
 
     private Host closestPrecedingNode(int nodeId) {
@@ -204,7 +221,7 @@ public class ChordWithSalt extends GenericProtocol {
 
         for (int i = m; i <= 1; i--) {
             finger = fingers.get(i);
-            if (isIdBetween(finger.start, myId, nodeId - 1)) {
+            if (isIdBetween(finger.start, myId, nodeId, false)) {
                 return finger.host;
             }
         }
@@ -225,33 +242,39 @@ public class ChordWithSalt extends GenericProtocol {
         return Math.abs(seed.hashCode() % k);
     }
 
-    //TODO: isto esta praticamente horrivel arranjar
-    private boolean isIdBetween(int id, int n, int successor) {
-        if (successor < 0) {
-            successor = k - successor;
+    private boolean isIdBetween(int id, int start, int end, boolean includeEnd) {
+        int minLimit = start;
+        int maxLimit = end;
+
+        if (minLimit > maxLimit) {
+            int amountToMaxLimit = Math.abs(k - id);
+            if (amountToMaxLimit < id) {
+                maxLimit = k;
+            } else {
+                minLimit = -1;
+            }
         }
 
-        if (n > k) {
-            return false;
-        }
-        while (true) {
-            n = (n + 1) % k;
-            if (n == id) {
-                return true;
-            }
-            if (n == successor) {
-                return false;
-            }
-        }
+        return includeEnd ? id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
     }
 
     public int calculateFinger(int myId, int fingerIndex) {
-        return (int) ((myId + Math.pow(2, fingerIndex - 1)) % k);
+        return (int) ((myId + Math.pow(2, fingerIndex)) % k);
     }
 
-    private void sendMsgIfNotMe(ProtocolMessage msg,Host to){
-        if(!to.equals(myself))
-            sendMessageSideChannel(msg,to);
+    private void sendMsgIfNotMe(ProtocolMessage msg, Host to) {
+        if (!to.equals(myself))
+            sendMessageSideChannel(msg, to);
+    }
+
+    private void changeSuccessor(Host newSuccessor) {
+        int successorId = calculateId(newSuccessor.toString());
+
+        FingerEntry finger = fingers.get(0);
+        finger.host = newSuccessor;
+        finger.hostId = successorId;
+
+        successor = newSuccessor;
     }
 
 }
