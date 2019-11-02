@@ -46,8 +46,6 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
     private Host successor;
     private List<FingerEntry> fingers;
     private int next;
-    private Map<Host, ProtocolTimer> heartbeatWaitingList;
-    private Set<Host> fail;
 
     public ChordWithSalt(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
@@ -67,7 +65,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
         registerMessageHandler(NotifyPredecessorMessage.MSG_CODE, uponNotifyPredecessorMessage, NotifyPredecessorMessage.serializer);
         registerMessageHandler(FindFingerSuccessorReplyMessage.MSG_CODE, uponFindFingerSuccessorReplyMessage, FindFingerSuccessorReplyMessage.serializer);
         registerMessageHandler(FindFingerSuccessorRequestMessage.MSG_CODE, uponFindFingerSuccessorRequestMessage, FindFingerSuccessorRequestMessage.serializer);
-        //  registerMessageHandler(HeartbeatMessage.MSG_CODE, uponHeartBeatMessage, HeartbeatMessage.serializer);
+
         registerRequestHandler(DisseminateRequest.REQUEST_ID, uponDisseminateRequest);
         registerMessageHandler(ForwardDisseminateMessage.MSG_CODE, uponForwardDisseminateMessage, ForwardDisseminateMessage.serializer);
 
@@ -86,7 +84,6 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
     @Override
     public void init(Properties properties) {
-        fail = new TreeSet<>();
         try {
             constructorManager();
             m = PropertiesUtils.getPropertyAsInt(properties, M);
@@ -291,9 +288,6 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
         System.err.println("Change Sucessor: " + newSuccessor);
         int successorId = calculateId(newSuccessor.toString());
 
-        if (fail.contains(newSuccessor))
-            return;
-
         FingerEntry finger = fingers.get(0);
         finger.host = newSuccessor;
         finger.hostId = successorId;
@@ -336,36 +330,6 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
             removeNetworkPeer(predecessor);
         }
     }
-//    @Override
-//    public void nodeDown(Host host) {
-//        System.err.println("Node down " + host);
-//        fail.add(host);
-//        removeNetworkPeer(host);
-//        changeSuccessor(fingers.get(1).host);
-//        sendMessageSideChannel(new FindSuccessorResponseMessage(myself),successor);
-//    }
-
-
-//    private void tryToConnect(Host host, int pos) {
-//        if (host == null)
-//            return;
-//
-//        sendMessageSideChannel(new HeartbeatMessage(), host);
-//        HeartBeatTimer timer = new HeartBeatTimer(host, pos);
-//        setupTimer(timer,1000);
-//        heartbeatWaitingList.put(host, timer);
-//    }
-//
-//    private final ProtocolTimerHandler uponHeartBeat = (protocolTimer) -> {
-//        HeartBeatTimer timer = (HeartBeatTimer) protocolTimer;
-////        if(timer.)
-////        changeSuccessor();
-//    };
-//
-//    private ProtocolMessageHandler uponHeartBeatMessage = (message) -> {
-//
-//    };
-
 
     // Topic Manager //TODO no crahes
     private Map<String, Set<Host>> topics;
