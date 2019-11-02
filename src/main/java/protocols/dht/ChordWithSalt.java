@@ -9,6 +9,7 @@ import babel.protocol.event.ProtocolMessage;
 import babel.timer.ProtocolTimer;
 import network.Host;
 import network.INetwork;
+import network.INodeListener;
 import protocols.dht.messages.*;
 import protocols.dht.messagesTopics.DeliverMessage;
 import protocols.dht.messagesTopics.DisseminateRequest;
@@ -18,17 +19,15 @@ import protocols.dht.notifications.MessageDeliver;
 import protocols.dht.requests.RouteRequest;
 import protocols.dht.requests.SubscribeRequest;
 import protocols.dht.timers.FixFingersTimer;
-import protocols.dht.timers.HeartBeatTimer;
 import protocols.dht.timers.StabilizeTimer;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.partialmembership.timers.DebugTimer;
 import utils.PropertiesUtils;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.*;
 
-public class ChordWithSalt extends GenericProtocol {
+public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
     public static final short PROTOCOL_ID = 1243;
     public static final String PROTOCOL_NAME = "ChordWithSalt";
@@ -56,11 +55,10 @@ public class ChordWithSalt extends GenericProtocol {
         registerNotification(MessageDeliver.NOTIFICATION_ID, MessageDeliver.NOTIFICATION_NAME);
 
         registerRequestHandler(BCastRequest.REQUEST_ID, uponRouteRequest);
-//        registerNodeListener(this);
+
         registerTimerHandler(StabilizeTimer.TimerCode, uponStabilize);
         registerTimerHandler(FixFingersTimer.TimerCode, uponFixFingers);
         registerTimerHandler(DebugTimer.TimerCode, uponDebugTimer);
-        //registerTimerHandler(HeartBeatTimer.TimerCode, uponHeartBeatTimer);
 
         registerMessageHandler(FindSuccessorRequestMessage.MSG_CODE, uponFindSuccessorRequestMessage, FindSuccessorRequestMessage.serializer);
         registerMessageHandler(FindSuccessorResponseMessage.MSG_CODE, uponFindSuccessorResponseMessage, FindSuccessorResponseMessage.serializer);
@@ -73,6 +71,7 @@ public class ChordWithSalt extends GenericProtocol {
         registerRequestHandler(DisseminateRequest.REQUEST_ID, uponDisseminateRequest);
         registerMessageHandler(ForwardDisseminateMessage.MSG_CODE, uponForwardDisseminateMessage, ForwardDisseminateMessage.serializer);
 
+        registerNodeListener(this);
     }
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
@@ -163,7 +162,7 @@ public class ChordWithSalt extends GenericProtocol {
 
         FingerEntry finger = fingers.get(next);
         int successorToFindId = calculateFinger(myId, next);
-        sendMessageSideChannel(new FindFingerSuccessorRequestMessage(successorToFindId, myself, next), finger.host);
+        sendMessageSideChannel(new FindFingerSuccessorRequestMessage(successorToFindId, myself, next), successor);
     };
 
     //TODO: this is whewww make it better plsdsdsadsad
@@ -171,10 +170,14 @@ public class ChordWithSalt extends GenericProtocol {
         int candidate = calculateId(protocolMessage.getFrom().toString());
 
         if (predecessor == null) {
+            addNetworkPeer(protocolMessage.getFrom());
             predecessor = protocolMessage.getFrom();
         } else {
             int predecessorId = calculateId(predecessor.toString());
             if (isIdBetween(candidate, predecessorId, myId, false)) {
+
+                removePredecessorNetworkPeer();
+                addNetworkPeer(protocolMessage.getFrom());
                 predecessor = protocolMessage.getFrom();
             }
         }
@@ -279,6 +282,11 @@ public class ChordWithSalt extends GenericProtocol {
         return (int) ((myId + Math.pow(2, fingerIndex)) % k);
     }
 
+    private void sendMsgIfNotMe(ProtocolMessage msg, Host to) {
+        if (!to.equals(myself))
+            sendMessageSideChannel(msg, to);
+    }
+
     private void changeSuccessor(Host newSuccessor) {
         System.err.println("Change Sucessor: " + newSuccessor);
         int successorId = calculateId(newSuccessor.toString());
@@ -287,18 +295,47 @@ public class ChordWithSalt extends GenericProtocol {
             return;
 
         FingerEntry finger = fingers.get(0);
-        if (finger.host != null) {
-            removeNetworkPeer(finger.host);
-        }
-
         finger.host = newSuccessor;
         finger.hostId = successorId;
 
-        addNetworkPeer(finger.host);
-
+        if (successor != null) {
+            removeSuccessorNetworkPeer();
+        }
         successor = newSuccessor;
+        addNetworkPeer(successor);
     }
 
+    @Override
+    public void nodeDown(Host host) {
+        if (predecessor.equals(host)) {
+            removePredecessorNetworkPeer();
+            predecessor = null;
+        }
+
+        if (successor.equals(host)) {
+            changeSuccessor(myself);
+        }
+    }
+
+    @Override
+    public void nodeUp(Host host) {
+    }
+
+    @Override
+    public void nodeConnectionReestablished(Host host) {
+    }
+
+    private void removeSuccessorNetworkPeer() {
+        if (!successor.equals(predecessor)) {
+            removeNetworkPeer(successor);
+        }
+    }
+
+    private void removePredecessorNetworkPeer() {
+        if (!predecessor.equals(successor)) {
+            removeNetworkPeer(predecessor);
+        }
+    }
 //    @Override
 //    public void nodeDown(Host host) {
 //        System.err.println("Node down " + host);
