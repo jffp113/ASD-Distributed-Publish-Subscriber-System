@@ -1,11 +1,15 @@
 package protocols.publishsubscribe;
 
+import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.handlers.ProtocolRequestHandler;
 import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
 import network.INetwork;
 import persistence.PersistentMap;
+import protocols.dht.ChordWithSalt;
+import protocols.dht.messagesTopics.DisseminateRequest;
+import protocols.dht.notifications.MessageDeliver;
 import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
@@ -33,6 +37,15 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         String topic = subscribeRequest.getTopic();
 
         boolean isSubscribe = subscribeRequest.isSubscribe();
+        protocols.dht.requests.SubscribeRequest subscribeReq =
+                new protocols.dht.requests.SubscribeRequest(subscribeRequest.getTopic(), isSubscribe);
+        subscribeReq.setDestination(ChordWithSalt.PROTOCOL_ID);
+
+        try {
+            sendRequest(subscribeReq);
+        } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
+            // Ignored - should not happen.
+        }
 
         if (this.topics.get(topic) == null) {
             if (isSubscribe) {
@@ -50,20 +63,23 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     public void init(Properties properties) {
         try {
             this.topics = new PersistentMap<>(new HashMap<>(INITIAL_CAPACITY)
-                    , TOPICS_FILE_NAME +properties.getProperty(LISTEN_BASE_PORT));
+                    , TOPICS_FILE_NAME + properties.getProperty(LISTEN_BASE_PORT));
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
+
     /**
      * Sends a publish requests to the underlying protocol.
      */
     private ProtocolRequestHandler uponPublishRequest = (publishRequest) -> {
         PublishRequest pRequest = (PublishRequest) publishRequest;
-        BCastRequest bCastRequest = new BCastRequest(pRequest.getMessage(), pRequest.getTopic());
-        bCastRequest.setDestination(GossipBCast.PROTOCOL_ID);
+
+        DisseminateRequest disseminateRequest = new DisseminateRequest(pRequest.getTopic(), pRequest.getMessage());
+        disseminateRequest.setDestination(ChordWithSalt.PROTOCOL_ID);
+
         try {
-            this.sendRequest(bCastRequest);
+            this.sendRequest(disseminateRequest);
         } catch (Exception e) {
             // ignored
         }
@@ -86,11 +102,14 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
      * @param pNotification to be delivered.
      */
     public void deliverNotification(ProtocolNotification pNotification) {
-        BCastDeliver bcDeliver = (BCastDeliver) pNotification;
-        String topic = bcDeliver.getTopic();
+        //BCastDeliver bcDeliver = (BCastDeliver) pNotification;
+        //String topic = bcDeliver.getTopic();
+
+        MessageDeliver deliver = (MessageDeliver) pNotification;
+        String topic = deliver.getTopic();
 
         if (this.topics.containsKey(topic)) {
-            triggerNotification(new PBDeliver(bcDeliver.getMessage(), topic));
+            triggerNotification(new PBDeliver(deliver.getMessage(), topic));
         }
     }
 }

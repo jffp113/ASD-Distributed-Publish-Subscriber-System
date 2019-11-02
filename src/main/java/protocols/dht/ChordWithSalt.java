@@ -9,7 +9,11 @@ import babel.timer.ProtocolTimer;
 import network.Host;
 import network.INetwork;
 import protocols.dht.messages.*;
+import protocols.dht.messagesTopics.DeliverMessage;
+import protocols.dht.messagesTopics.DisseminateRequest;
+import protocols.dht.messagesTopics.ForwardDisseminateMessage;
 import protocols.dht.messagesTopics.ForwardSunscribeMessage;
+import protocols.dht.notifications.MessageDeliver;
 import protocols.dht.requests.RouteRequest;
 import protocols.dht.requests.SubscribeRequest;
 import protocols.dht.timers.FixFingersTimer;
@@ -42,18 +46,20 @@ public class ChordWithSalt extends GenericProtocol {
     private Host successor;
     private List<FingerEntry> fingers;
     private int next;
-    private Map<Host,ProtocolTimer> heartbeatWaitingList;
+    private Map<Host, ProtocolTimer> heartbeatWaitingList;
     private Set<Host> fail;
 
     public ChordWithSalt(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
+
+        registerNotification(MessageDeliver.NOTIFICATION_ID, MessageDeliver.NOTIFICATION_NAME);
 
         registerRequestHandler(BCastRequest.REQUEST_ID, uponRouteRequest);
 //        registerNodeListener(this);
         registerTimerHandler(StabilizeTimer.TimerCode, uponStabilize);
         registerTimerHandler(FixFingersTimer.TimerCode, uponFixFingers);
         registerTimerHandler(DebugTimer.TimerCode, uponDebugTimer);
-        registerTimerHandler(HeartBeatTimer.TimerCode, uponHeartBeat);
+        //registerTimerHandler(HeartBeatTimer.TimerCode, uponHeartBeatTimer);
 
         registerMessageHandler(FindSuccessorRequestMessage.MSG_CODE, uponFindSuccessorRequestMessage, FindSuccessorRequestMessage.serializer);
         registerMessageHandler(FindSuccessorResponseMessage.MSG_CODE, uponFindSuccessorResponseMessage, FindSuccessorResponseMessage.serializer);
@@ -62,7 +68,9 @@ public class ChordWithSalt extends GenericProtocol {
         registerMessageHandler(NotifyPredecessorMessage.MSG_CODE, uponNotifyPredecessorMessage, NotifyPredecessorMessage.serializer);
         registerMessageHandler(FindFingerSuccessorReplyMessage.MSG_CODE, uponFindFingerSuccessorReplyMessage, FindFingerSuccessorReplyMessage.serializer);
         registerMessageHandler(FindFingerSuccessorRequestMessage.MSG_CODE, uponFindFingerSuccessorRequestMessage, FindFingerSuccessorRequestMessage.serializer);
-        registerMessageHandler(HeartbeatMessage.MSG_CODE, uponHeartBeatMessage, HeartbeatMessage.serializer);
+        //  registerMessageHandler(HeartbeatMessage.MSG_CODE, uponHeartBeatMessage, HeartbeatMessage.serializer);
+        registerRequestHandler(DisseminateRequest.REQUEST_ID, uponDisseminateRequest);
+        registerMessageHandler(ForwardDisseminateMessage.MSG_CODE, uponForwardDisseminateMessage, ForwardDisseminateMessage.serializer);
 
     }
 
@@ -80,6 +88,7 @@ public class ChordWithSalt extends GenericProtocol {
     public void init(Properties properties) {
         fail = new TreeSet<>();
         try {
+            constructorManager();
             m = PropertiesUtils.getPropertyAsInt(properties, M);
             k = (int) Math.pow(2, m);
             myId = generateId();
@@ -104,7 +113,7 @@ public class ChordWithSalt extends GenericProtocol {
                     PropertiesUtils.getPropertyAsInt(properties, FIX_FINGERS_INIT),
                     PropertiesUtils.getPropertyAsInt(properties, FIX_FINGERS_PERIOD));
 
-        } catch (UnknownHostException e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -273,11 +282,11 @@ public class ChordWithSalt extends GenericProtocol {
         System.err.println("Change Sucessor: " + newSuccessor);
         int successorId = calculateId(newSuccessor.toString());
 
-        if(fail.contains(newSuccessor))
+        if (fail.contains(newSuccessor))
             return;
 
         FingerEntry finger = fingers.get(0);
-        if(finger.host != null){
+        if (finger.host != null) {
             removeNetworkPeer(finger.host);
         }
 
@@ -321,9 +330,7 @@ public class ChordWithSalt extends GenericProtocol {
 
 
     // Topic Manager //TODO no crahes
-
     private Map<String, Set<Host>> topics;
-
 
     private void constructorManager() throws HandlerRegistrationException {
         topics = new HashMap<>();
@@ -331,45 +338,61 @@ public class ChordWithSalt extends GenericProtocol {
     }
 
     private void initManager() throws HandlerRegistrationException {
-        registerRequestHandler(SubscribeRequest.REQUEST_ID,uponSubscribeRequest);
-        registerMessageHandler(ForwardSunscribeMessage.MSG_CODE,uponForwardSunscribeMessage,ForwardSunscribeMessage.serializer);
+        registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
+        registerMessageHandler(ForwardSunscribeMessage.MSG_CODE, uponForwardSunscribeMessage, ForwardSunscribeMessage.serializer);
     }
 
     //Request Subscribe from level up
-    private ProtocolRequestHandler uponSubscribeRequest = (protocolRequest) ->{
-        SubscribeRequest request = (SubscribeRequest)protocolRequest;
-        subscribeOrUnsubscribe(myself,request.getTopic(),request.isSubscribe());
+    private ProtocolRequestHandler uponSubscribeRequest = (protocolRequest) -> {
+        SubscribeRequest request = (SubscribeRequest) protocolRequest;
+        subscribeOrUnsubscribe(myself, request.getTopic(), request.isSubscribe());
     };
 
-    private void subscribeOrUnsubscribe(Host host, String topic,boolean isSubscribe) {
+    private void subscribeOrUnsubscribe(Host host, String topic, boolean isSubscribe) {
         int id = calculateId(topic);
-        boolean forMe = isIdBetween(id,myId,fingers.get(0).hostId,false);
-        if(forMe){
+        boolean forMe = isIdBetween(id, myId, fingers.get(0).hostId, false);
+        if (forMe) {
             Set<Host> hosts = topics.get(topic);
-            if(hosts == null)
+            if (hosts == null)
                 hosts = new HashSet<>();
 
-            if(isSubscribe)
+            if (isSubscribe)
                 hosts.add(host);
             else
                 hosts.remove(host);
 
-            topics.put(topic,hosts);
-        }
-        else{
-            sendMessageSideChannel(new ForwardSunscribeMessage(topic,host,isSubscribe),closestPrecedingNode(id));
+            topics.put(topic, hosts);
+        } else {
+            sendMessageSideChannel(new ForwardSunscribeMessage(topic, host, isSubscribe), closestPrecedingNode(id));
         }
     }
 
     //Request Subscribe from other ps
     private ProtocolMessageHandler uponForwardSunscribeMessage = protocolMessage -> {
-        ForwardSunscribeMessage message = (ForwardSunscribeMessage)protocolMessage;
-        subscribeOrUnsubscribe(message.getHost(),message.getTopic(),message.isSubscribe());
+        ForwardSunscribeMessage message = (ForwardSunscribeMessage) protocolMessage;
+        subscribeOrUnsubscribe(message.getHost(), message.getTopic(), message.isSubscribe());
     };
 
     //Request to disseminate
+    private ProtocolRequestHandler uponDisseminateRequest = (protocolRequest) -> {
+        DisseminateRequest request = (DisseminateRequest) protocolRequest;
+        disseminate(request.getTopic(), request.getMessage());
+    };
 
-    //Send to all
+    private void disseminate(String topic, String message) {
+        int topicId = calculateId(topic);
+        if (isIdBetween(topicId, myId, fingers.get(0).hostId, false)) {
+            deliverNotification(new MessageDeliver(topic, message));
+            for (Host subscriber : topics.get(topic)) {
+                sendMessageSideChannel(new DeliverMessage(topic, message), subscriber);
+            }
+        } else {
+            sendMessageSideChannel(new ForwardDisseminateMessage(topic, message), closestPrecedingNode(topicId));
+        }
+    }
 
-
+    ProtocolMessageHandler uponForwardDisseminateMessage = (protocolMessage) -> {
+        ForwardDisseminateMessage message = (ForwardDisseminateMessage) protocolMessage;
+        disseminate(message.getTopic(), message.getTopic());
+    };
 }

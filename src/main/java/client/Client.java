@@ -4,6 +4,8 @@ import babel.Babel;
 import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import network.INetwork;
+import protocols.dht.ChordWithSalt;
+import protocols.dht.notifications.MessageDeliver;
 import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
 import protocols.partialmembership.HyParView;
@@ -27,19 +29,22 @@ public class Client implements INotificationConsumer {
         properties = babel.loadConfig(NETWORK_CONFIG_PROPERTIES, args);
         INetwork net = babel.getNetworkInstance();
 
-        HyParView hyParView = new HyParView(net);
+      /*  HyParView hyParView = new HyParView(net);
         hyParView.init(properties);
-        babel.registerProtocol(hyParView);
+        babel.registerProtocol(hyParView);*/
+        ChordWithSalt chordWithSalt = new ChordWithSalt(net);
+        chordWithSalt.init(properties);
+        babel.registerProtocol(chordWithSalt);
 
         this.pubSub = new PublishSubscribe(net);
         this.pubSub.init(properties);
         babel.registerProtocol(pubSub);
 
-        GossipBCast bCast = new GossipBCast(net);
+     /*   GossipBCast bCast = new GossipBCast(net);
         bCast.init(properties);
-        babel.registerProtocol(bCast);
+        babel.registerProtocol(bCast);*/
 
-        bCast.subscribeNotification(BCastDeliver.NOTIFICATION_ID, pubSub);
+        chordWithSalt.subscribeNotification(MessageDeliver.NOTIFICATION_ID, pubSub);
         pubSub.subscribeNotification(PBDeliver.NOTIFICATION_ID, this);
 
         babel.start();
@@ -79,6 +84,6 @@ public class Client implements INotificationConsumer {
     @Override
     public void deliverNotification(ProtocolNotification protocolNotification) {
         PBDeliver pbDeliver = (PBDeliver) protocolNotification;
-        System.out.printf(NOTIFICATION_FORMAT,properties.getProperty(LISTEN_BASE_PORT), System.currentTimeMillis() , pbDeliver.getTopic(), pbDeliver.getMessage());
+        System.out.printf(NOTIFICATION_FORMAT, properties.getProperty(LISTEN_BASE_PORT), System.currentTimeMillis(), pbDeliver.getTopic(), pbDeliver.getMessage());
     }
 }

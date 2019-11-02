@@ -23,8 +23,6 @@ public class EmptyTest {
         ChordWithSalt hyParView = new ChordWithSalt(net);
         hyParView.init(properties);
         babel.registerProtocol(hyParView);
-
-
         babel.start();
     }
 }
