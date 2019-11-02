@@ -109,7 +109,8 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         String topic = deliver.getTopic();
 
         if (this.topics.containsKey(topic)) {
-            triggerNotification(new PBDeliver(deliver.getMessage(), topic));
+            System.out.println(deliver.getMessage()+" "+topic);
+                triggerNotification(new PBDeliver(deliver.getMessage(), topic));
         }
     }
 }

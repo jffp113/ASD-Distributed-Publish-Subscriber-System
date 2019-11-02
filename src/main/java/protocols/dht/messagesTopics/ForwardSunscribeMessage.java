@@ -16,11 +16,11 @@ public class ForwardSunscribeMessage extends ProtocolMessage {
     private String topic;
     private boolean isSubscribe;
 
-    public ForwardSunscribeMessage(String topic,Host host, boolean isSubscribe) {
+    public ForwardSunscribeMessage(String topic, Host host, boolean isSubscribe) {
         super(MSG_CODE);
         this.topic = topic;
         this.host = host;
-        this.isSubscribe =isSubscribe;
+        this.isSubscribe = isSubscribe;
     }
 
     public String getTopic() {
@@ -48,7 +48,7 @@ public class ForwardSunscribeMessage extends ProtocolMessage {
         public ForwardSunscribeMessage deserialize(ByteBuf in) throws UnknownHostException {
             byte[] bytes = new byte[in.readInt()];
             in.readBytes(bytes);
-            return new ForwardSunscribeMessage(new String(bytes), Host.deserialize(in),in.readBoolean());
+            return new ForwardSunscribeMessage(new String(bytes), Host.deserialize(in), in.readBoolean());
         }
 
         @Override

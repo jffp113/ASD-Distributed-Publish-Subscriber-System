@@ -7,7 +7,7 @@ import java.util.regex.Pattern;
 
 public class MessageDeliver extends ProtocolNotification {
 
-    public static final short NOTIFICATION_ID = 201;
+    public static final short NOTIFICATION_ID = 2044;
     public static final String NOTIFICATION_NAME = "MessageDeliver";
     public static final String REGEX = "^(\\d+)\\|(\\d+)\\|(.*)";
     private Pattern regex = Pattern.compile(REGEX);
@@ -15,7 +15,7 @@ public class MessageDeliver extends ProtocolNotification {
     private String message;
     private String topic;
 
-    public MessageDeliver(String message, String topic) {
+    public MessageDeliver(String topic, String message) {
         super(MessageDeliver.NOTIFICATION_ID, NOTIFICATION_NAME);
         this.message = message;
         this.topic = topic;

@@ -36,7 +36,7 @@ public class DeliverMessage extends ProtocolMessage {
 
             byte[] messageBytes = new byte[in.readInt()];
             in.readBytes(messageBytes);
-            String message = new String(topicBytes);
+            String message = new String(messageBytes);
 
             return new DeliverMessage(topic, message);
         }
@@ -46,4 +46,12 @@ public class DeliverMessage extends ProtocolMessage {
             return 2 * Integer.BYTES + m.topic.length() + m.message.length();
         }
     };
+
+    public String getTopic() {
+        return topic;
+    }
+
+    public String getMessage() {
+        return message;
+    }
 }

@@ -36,7 +36,7 @@ public class ForwardDisseminateMessage extends ProtocolMessage {
 
             byte[] messageBytes = new byte[in.readInt()];
             in.readBytes(messageBytes);
-            String message = new String(topicBytes);
+            String message = new String(messageBytes);
 
             return new ForwardDisseminateMessage(topic, message);
         }

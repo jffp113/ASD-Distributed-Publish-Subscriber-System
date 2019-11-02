@@ -5,6 +5,7 @@ import babel.handlers.ProtocolMessageHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.handlers.ProtocolTimerHandler;
 import babel.protocol.GenericProtocol;
+import babel.protocol.event.ProtocolMessage;
 import babel.timer.ProtocolTimer;
 import network.Host;
 import network.INetwork;
@@ -235,7 +236,7 @@ public class ChordWithSalt extends GenericProtocol {
     private Host closestPrecedingNode(int nodeId) {
         FingerEntry finger;
 
-        for (int i = m; i <= 1; i--) {
+        for (int i = m - 1; i >= 0; i--) {
             finger = fingers.get(i);
             if (isIdBetween(finger.start, myId, nodeId, false)) {
                 return finger.host;
@@ -340,6 +341,7 @@ public class ChordWithSalt extends GenericProtocol {
     private void initManager() throws HandlerRegistrationException {
         registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
         registerMessageHandler(ForwardSunscribeMessage.MSG_CODE, uponForwardSunscribeMessage, ForwardSunscribeMessage.serializer);
+        registerMessageHandler(DeliverMessage.MSG_CODE, uponDeliverMessage, DeliverMessage.serializer);
     }
 
     //Request Subscribe from level up
@@ -349,8 +351,9 @@ public class ChordWithSalt extends GenericProtocol {
     };
 
     private void subscribeOrUnsubscribe(Host host, String topic, boolean isSubscribe) {
-        int id = calculateId(topic);
-        boolean forMe = isIdBetween(id, myId, fingers.get(0).hostId, false);
+        int topicId = calculateId(topic);
+        Host closestPrecedingNode = closestPrecedingNode(topicId);
+        boolean forMe = myself.equals(closestPrecedingNode);
         if (forMe) {
             Set<Host> hosts = topics.get(topic);
             if (hosts == null)
@@ -363,7 +366,7 @@ public class ChordWithSalt extends GenericProtocol {
 
             topics.put(topic, hosts);
         } else {
-            sendMessageSideChannel(new ForwardSunscribeMessage(topic, host, isSubscribe), closestPrecedingNode(id));
+            sendMessageIfNotMe(new ForwardSunscribeMessage(topic, host, isSubscribe), closestPrecedingNode);
         }
     }
 
@@ -381,13 +384,15 @@ public class ChordWithSalt extends GenericProtocol {
 
     private void disseminate(String topic, String message) {
         int topicId = calculateId(topic);
-        if (isIdBetween(topicId, myId, fingers.get(0).hostId, false)) {
-            deliverNotification(new MessageDeliver(topic, message));
+        Host closestPrecedingNode = closestPrecedingNode(topicId);
+        boolean forMe = myself.equals(closestPrecedingNode);
+        if (forMe) {
+            triggerNotification(new MessageDeliver(topic, message));
             for (Host subscriber : topics.get(topic)) {
-                sendMessageSideChannel(new DeliverMessage(topic, message), subscriber);
+                sendMessageIfNotMe(new DeliverMessage(topic, message), subscriber);
             }
         } else {
-            sendMessageSideChannel(new ForwardDisseminateMessage(topic, message), closestPrecedingNode(topicId));
+            sendMessageIfNotMe(new ForwardDisseminateMessage(topic, message), closestPrecedingNode);
         }
     }
 
@@ -395,4 +400,15 @@ public class ChordWithSalt extends GenericProtocol {
         ForwardDisseminateMessage message = (ForwardDisseminateMessage) protocolMessage;
         disseminate(message.getTopic(), message.getTopic());
     };
+
+    private void sendMessageIfNotMe(ProtocolMessage protocolMessage, Host host) {
+        if (!host.equals(myself))
+            sendMessageSideChannel(protocolMessage, host);
+    }
+
+    private ProtocolMessageHandler uponDeliverMessage = (protocolMessage) -> {
+        DeliverMessage message = (DeliverMessage) protocolMessage;
+        triggerNotification(new MessageDeliver(message.getTopic(), message.getTopic()));
+    };
+
 }
