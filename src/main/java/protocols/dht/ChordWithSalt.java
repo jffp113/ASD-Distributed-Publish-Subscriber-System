@@ -6,7 +6,6 @@ import babel.handlers.ProtocolRequestHandler;
 import babel.handlers.ProtocolTimerHandler;
 import babel.protocol.GenericProtocol;
 import babel.protocol.event.ProtocolMessage;
-import babel.timer.ProtocolTimer;
 import network.Host;
 import network.INetwork;
 import network.INodeListener;
@@ -80,6 +79,10 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
         for (FingerEntry f : fingers) {
             System.out.println(f);
         }
+        System.out.println("Owner of:");
+        for(String topic : this.topics.keySet()){
+            System.out.println(topic);
+        }
     };
 
     @Override
@@ -94,7 +97,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
             String contactString = PropertiesUtils.getPropertyAsString(properties, CONTACT);
             createRing();
             if (PropertiesUtils.getPropertyAsBool(properties, "debug")) {
-                setupPeriodicTimer(new DebugTimer(), 1000, 3000);
+                setupPeriodicTimer(new DebugTimer(), 1000, 10000);
             }
 
             if (contactString != null) {
@@ -139,8 +142,10 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
             sendMessageSideChannel(new FindFingerSuccessorReplyMessage(successor, message.getNext()), message.getRequesterNode());
         } else {
             Host closestPrecedingNode = closestPrecedingNode(nodeId);
-            if (!closestPrecedingNode.equals(myself))
+            if (!closestPrecedingNode.equals(myself)) {
+
                 sendMessageSideChannel(message, closestPrecedingNode);
+            }
         }
     };
 
@@ -159,7 +164,8 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
         FingerEntry finger = fingers.get(next);
         int successorToFindId = calculateFinger(myId, next);
-        sendMessageSideChannel(new FindFingerSuccessorRequestMessage(successorToFindId, myself, next), successor);
+        System.out.println("Who is near " + successorToFindId);
+        sendMsgIfNotMe(new FindFingerSuccessorRequestMessage(successorToFindId, myself, next), finger.host);
     };
 
     //TODO: this is whewww make it better plsdsdsadsad
@@ -272,7 +278,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
             }
         }
 
-        return includeEnd ? id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
+        return includeEnd ? start == end || id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
     }
 
     public int calculateFinger(int myId, int fingerIndex) {
@@ -367,7 +373,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
             topics.put(topic, hosts);
         } else {
-            sendMessageIfNotMe(new ForwardSunscribeMessage(topic, host, isSubscribe), closestPrecedingNode);
+            sendMessageSideChannel(new ForwardSunscribeMessage(topic, host, isSubscribe), closestPrecedingNode);
         }
     }
 
@@ -388,6 +394,9 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
         Host closestPrecedingNode = closestPrecedingNode(topicId);
         boolean forMe = myself.equals(closestPrecedingNode);
         if (forMe) {
+            if(topics.get(topic) == null)
+                return;
+
             triggerNotification(new MessageDeliver(topic, message));
             for (Host subscriber : topics.get(topic)) {
                 sendMessageIfNotMe(new DeliverMessage(topic, message), subscriber);

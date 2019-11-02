@@ -1,28 +1,34 @@
-import babel.Babel;
-import network.INetwork;
-import protocols.dht.ChordWithSalt;
-import protocols.floadbroadcastrecovery.GossipBCast;
-import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
-import protocols.partialmembership.HyParView;
-import protocols.publishsubscribe.PublishSubscribe;
-import protocols.publishsubscribe.notifications.PBDeliver;
+import org.junit.Assert;
+import org.junit.Test;
 
-import java.util.Properties;
 
 public class EmptyTest {
-    private static Properties properties;
-    private static final String NETWORK_CONFIG_PROPERTIES = "src/network_config.properties";
-    private static final String NOTIFICATION_FORMAT = "Process %s received event at %d: Topic: %s Message: %s\n";
-    private static final String LISTEN_BASE_PORT = "listen_base_port";
+    static int k = 32;
 
-    public static void main(String[] args) throws Exception {
-        Babel babel = Babel.getInstance();
-        properties = babel.loadConfig(NETWORK_CONFIG_PROPERTIES, args);
-        INetwork net = babel.getNetworkInstance();
+    private boolean isIdBetween(int id, int start, int end, boolean includeEnd) {
+        int minLimit = start;
+        int maxLimit = end;
 
-        ChordWithSalt hyParView = new ChordWithSalt(net);
-        hyParView.init(properties);
-        babel.registerProtocol(hyParView);
-        babel.start();
+        if (minLimit > maxLimit) {
+            int amountToMaxLimit = Math.abs(k - id);
+            if (amountToMaxLimit < id) {
+                maxLimit = k;
+            } else {
+                minLimit = -1;
+            }
+        }
+
+        return includeEnd ?start  ==  end|| id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
+    }
+
+    @Test
+    public void test1(){
+        Assert.assertTrue(isIdBetween(4,0,4,true));
+        Assert.assertFalse(isIdBetween(4,0,4,false));
+        Assert.assertFalse(isIdBetween(4,0,3,true));
+        Assert.assertFalse(isIdBetween(4,0,3,false));
+        Assert.assertFalse(isIdBetween(4,7,3,false));
+        Assert.assertFalse(isIdBetween(4,4,4,false));
+        Assert.assertTrue(isIdBetween(4,4,4,true));
     }
 }
