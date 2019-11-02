@@ -1,15 +1,19 @@
 package protocols.dht;
 
+import babel.exceptions.HandlerRegistrationException;
 import babel.handlers.ProtocolMessageHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.handlers.ProtocolTimerHandler;
 import babel.protocol.GenericProtocol;
-import babel.protocol.event.ProtocolMessage;
+import babel.timer.ProtocolTimer;
 import network.Host;
 import network.INetwork;
 import protocols.dht.messages.*;
+import protocols.dht.messagesTopics.ForwardSunscribeMessage;
 import protocols.dht.requests.RouteRequest;
+import protocols.dht.requests.SubscribeRequest;
 import protocols.dht.timers.FixFingersTimer;
+import protocols.dht.timers.HeartBeatTimer;
 import protocols.dht.timers.StabilizeTimer;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.partialmembership.timers.DebugTimer;
@@ -17,9 +21,7 @@ import utils.PropertiesUtils;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Properties;
+import java.util.*;
 
 public class ChordWithSalt extends GenericProtocol {
 
@@ -40,15 +42,18 @@ public class ChordWithSalt extends GenericProtocol {
     private Host successor;
     private List<FingerEntry> fingers;
     private int next;
+    private Map<Host,ProtocolTimer> heartbeatWaitingList;
+    private Set<Host> fail;
 
     public ChordWithSalt(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
 
         registerRequestHandler(BCastRequest.REQUEST_ID, uponRouteRequest);
-
+//        registerNodeListener(this);
         registerTimerHandler(StabilizeTimer.TimerCode, uponStabilize);
         registerTimerHandler(FixFingersTimer.TimerCode, uponFixFingers);
         registerTimerHandler(DebugTimer.TimerCode, uponDebugTimer);
+        registerTimerHandler(HeartBeatTimer.TimerCode, uponHeartBeat);
 
         registerMessageHandler(FindSuccessorRequestMessage.MSG_CODE, uponFindSuccessorRequestMessage, FindSuccessorRequestMessage.serializer);
         registerMessageHandler(FindSuccessorResponseMessage.MSG_CODE, uponFindSuccessorResponseMessage, FindSuccessorResponseMessage.serializer);
@@ -57,6 +62,7 @@ public class ChordWithSalt extends GenericProtocol {
         registerMessageHandler(NotifyPredecessorMessage.MSG_CODE, uponNotifyPredecessorMessage, NotifyPredecessorMessage.serializer);
         registerMessageHandler(FindFingerSuccessorReplyMessage.MSG_CODE, uponFindFingerSuccessorReplyMessage, FindFingerSuccessorReplyMessage.serializer);
         registerMessageHandler(FindFingerSuccessorRequestMessage.MSG_CODE, uponFindFingerSuccessorRequestMessage, FindFingerSuccessorRequestMessage.serializer);
+        registerMessageHandler(HeartbeatMessage.MSG_CODE, uponHeartBeatMessage, HeartbeatMessage.serializer);
 
     }
 
@@ -72,6 +78,7 @@ public class ChordWithSalt extends GenericProtocol {
 
     @Override
     public void init(Properties properties) {
+        fail = new TreeSet<>();
         try {
             m = PropertiesUtils.getPropertyAsInt(properties, M);
             k = (int) Math.pow(2, m);
@@ -262,19 +269,107 @@ public class ChordWithSalt extends GenericProtocol {
         return (int) ((myId + Math.pow(2, fingerIndex)) % k);
     }
 
-    private void sendMsgIfNotMe(ProtocolMessage msg, Host to) {
-        if (!to.equals(myself))
-            sendMessageSideChannel(msg, to);
-    }
-
     private void changeSuccessor(Host newSuccessor) {
+        System.err.println("Change Sucessor: " + newSuccessor);
         int successorId = calculateId(newSuccessor.toString());
 
+        if(fail.contains(newSuccessor))
+            return;
+
         FingerEntry finger = fingers.get(0);
+        if(finger.host != null){
+            removeNetworkPeer(finger.host);
+        }
+
         finger.host = newSuccessor;
         finger.hostId = successorId;
 
+        addNetworkPeer(finger.host);
+
         successor = newSuccessor;
     }
+
+//    @Override
+//    public void nodeDown(Host host) {
+//        System.err.println("Node down " + host);
+//        fail.add(host);
+//        removeNetworkPeer(host);
+//        changeSuccessor(fingers.get(1).host);
+//        sendMessageSideChannel(new FindSuccessorResponseMessage(myself),successor);
+//    }
+
+
+//    private void tryToConnect(Host host, int pos) {
+//        if (host == null)
+//            return;
+//
+//        sendMessageSideChannel(new HeartbeatMessage(), host);
+//        HeartBeatTimer timer = new HeartBeatTimer(host, pos);
+//        setupTimer(timer,1000);
+//        heartbeatWaitingList.put(host, timer);
+//    }
+//
+//    private final ProtocolTimerHandler uponHeartBeat = (protocolTimer) -> {
+//        HeartBeatTimer timer = (HeartBeatTimer) protocolTimer;
+////        if(timer.)
+////        changeSuccessor();
+//    };
+//
+//    private ProtocolMessageHandler uponHeartBeatMessage = (message) -> {
+//
+//    };
+
+
+    // Topic Manager //TODO no crahes
+
+    private Map<String, Set<Host>> topics;
+
+
+    private void constructorManager() throws HandlerRegistrationException {
+        topics = new HashMap<>();
+        initManager();
+    }
+
+    private void initManager() throws HandlerRegistrationException {
+        registerRequestHandler(SubscribeRequest.REQUEST_ID,uponSubscribeRequest);
+        registerMessageHandler(ForwardSunscribeMessage.MSG_CODE,uponForwardSunscribeMessage,ForwardSunscribeMessage.serializer);
+    }
+
+    //Request Subscribe from level up
+    private ProtocolRequestHandler uponSubscribeRequest = (protocolRequest) ->{
+        SubscribeRequest request = (SubscribeRequest)protocolRequest;
+        subscribeOrUnsubscribe(myself,request.getTopic(),request.isSubscribe());
+    };
+
+    private void subscribeOrUnsubscribe(Host host, String topic,boolean isSubscribe) {
+        int id = calculateId(topic);
+        boolean forMe = isIdBetween(id,myId,fingers.get(0).hostId,false);
+        if(forMe){
+            Set<Host> hosts = topics.get(topic);
+            if(hosts == null)
+                hosts = new HashSet<>();
+
+            if(isSubscribe)
+                hosts.add(host);
+            else
+                hosts.remove(host);
+
+            topics.put(topic,hosts);
+        }
+        else{
+            sendMessageSideChannel(new ForwardSunscribeMessage(topic,host,isSubscribe),closestPrecedingNode(id));
+        }
+    }
+
+    //Request Subscribe from other ps
+    private ProtocolMessageHandler uponForwardSunscribeMessage = protocolMessage -> {
+        ForwardSunscribeMessage message = (ForwardSunscribeMessage)protocolMessage;
+        subscribeOrUnsubscribe(message.getHost(),message.getTopic(),message.isSubscribe());
+    };
+
+    //Request to disseminate
+
+    //Send to all
+
 
 }
