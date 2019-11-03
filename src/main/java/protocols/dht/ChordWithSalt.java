@@ -21,9 +21,12 @@ import protocols.dht.timers.FixFingersTimer;
 import protocols.dht.timers.StabilizeTimer;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.partialmembership.timers.DebugTimer;
+import sun.security.provider.MD5;
 import utils.PropertiesUtils;
 
 import java.net.InetAddress;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 public class ChordWithSalt extends GenericProtocol implements INodeListener {
@@ -164,7 +167,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
         FingerEntry finger = fingers.get(next);
         int successorToFindId = calculateFinger(myId, next);
-        System.out.println("Who is near " + successorToFindId);
+        //System.out.println("Who is near " + successorToFindId);
         sendMsgIfNotMe(new FindFingerSuccessorRequestMessage(successorToFindId, myself, next), finger.host);
     };
 
@@ -174,18 +177,31 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
         if (predecessor == null) {
             addNetworkPeer(protocolMessage.getFrom());
-            predecessor = protocolMessage.getFrom();
+            changePredecessor(protocolMessage.getFrom());
         } else {
             int predecessorId = calculateId(predecessor.toString());
             if (isIdBetween(candidate, predecessorId, myId, false)) {
 
                 removePredecessorNetworkPeer();
                 addNetworkPeer(protocolMessage.getFrom());
-                predecessor = protocolMessage.getFrom();
+                changePredecessor(protocolMessage.getFrom());
             }
         }
 
     };
+
+    private void changePredecessor(Host predecessor){
+        this.predecessor = predecessor;
+        for(FingerEntry finger : fingers){
+            if(finger.host.equals(myself)){
+                int predessorID = calculateId(predecessor.toString());
+                if(!isIdBetween(finger.start,calculateId(predecessor.toString()),myId,true)){
+                    finger.host = successor;
+                    finger.hostId = fingers.get(0).hostId;
+                }
+            }
+        }
+    }
 
     private final ProtocolMessageHandler uponFindPredecessorRequestMessage = (protocolMessage) -> {
         Host predecessorToSend = predecessor;
@@ -224,32 +240,58 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
         int successorId = calculateId(this.successor.toString());
 
         if (isIdBetween(nodeId, myId, successorId, true)) {
-            sendMessageSideChannel(new FindSuccessorResponseMessage(successor), message.getRequesterNode());
+            sendMessageSideChannel(new FindSuccessorResponseMessage(successor,fingers), message.getRequesterNode());
         } else {
             Host closestPrecedingNode = closestPrecedingNode(nodeId);
             if (!closestPrecedingNode.equals(myself))
                 sendMessageSideChannel(message, closestPrecedingNode);
             else
-                sendMessageSideChannel(new FindSuccessorResponseMessage(myself), message.getRequesterNode());
+                sendMessageSideChannel(new FindSuccessorResponseMessage(myself,fingers), message.getRequesterNode());
         }
     };
 
     private final ProtocolMessageHandler uponFindSuccessorResponseMessage = (protocolMessage) -> {
         FindSuccessorResponseMessage message = (FindSuccessorResponseMessage) protocolMessage;
         changeSuccessor(message.getSuccessor());
+
+        fillMyTable(message.getFingerEntryList());
+
     };
 
+    private void fillMyTable(List<FingerEntry> fingerEntryList) {
+        for(int i = 1; i < m - 1; i++){
+            FingerEntry f = fingers.get(i+1);
+            if(isIdBetween(fingers.get(i+1).start,myId,fingers.get(i).hostId,false)){
+                FingerEntry pre = fingers.get(i);
+                f.host = pre.host;
+                f.hostId = pre.hostId;
+            }else{
+                Host suc = findSucc(i + 1,fingerEntryList); //TODO FIX THIS FUCKING THING
+                f.host = suc;
+                f.hostId = calculateId(suc.toString());
+            }
+        }
+    }
+
+    private Host findSucc(int i, List<FingerEntry> fingerEntryList) {
+       return closestPrecedingNode(i,fingerEntryList,fingerEntryList.get(1).host);
+    }
+
     private Host closestPrecedingNode(int nodeId) {
+        return closestPrecedingNode(nodeId,fingers,myself);
+    }
+
+    private Host closestPrecedingNode(int nodeId, List<FingerEntry> fingers, Host defaultHost) {
         FingerEntry finger;
 
         for (int i = m - 1; i >= 0; i--) {
             finger = fingers.get(i);
-            if (isIdBetween(finger.start, myId, nodeId, false)) {
+            if (isIdBetween(finger.hostId, calculateId(defaultHost.toString()), nodeId, false)) {
                 return finger.host;
             }
         }
 
-        return myself;
+        return defaultHost;
     }
 
     //TODO: layer acima
@@ -258,11 +300,17 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
     };
 
     private int generateId() {
-        return Math.abs(myself.toString().hashCode() % k);
+        return calculateId(myself.toString());
     }
 
     private int calculateId(String seed) {
-        return Math.abs(seed.hashCode() % k);
+        String code = null;
+        try {
+            code = new String(MessageDigest.getInstance("SHA1").digest(seed.getBytes()));
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+        }
+        return Math.abs(code.hashCode() % k);
     }
 
     private boolean isIdBetween(int id, int start, int end, boolean includeEnd) {
