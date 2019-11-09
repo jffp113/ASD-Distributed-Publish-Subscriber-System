@@ -9,6 +9,8 @@ import babel.protocol.event.ProtocolMessage;
 import network.Host;
 import network.INetwork;
 import network.INodeListener;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import protocols.dht.messages.*;
 import protocols.dht.messagesTopics.DeliverMessage;
 import protocols.dht.messagesTopics.DisseminateRequest;
@@ -21,7 +23,6 @@ import protocols.dht.timers.FixFingersTimer;
 import protocols.dht.timers.StabilizeTimer;
 import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.partialmembership.timers.DebugTimer;
-import sun.security.provider.MD5;
 import utils.PropertiesUtils;
 
 import java.net.InetAddress;
@@ -29,8 +30,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
+
 public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
+    final static Logger logger = LogManager.getLogger(ChordWithSalt.class.getName());
     public static final short PROTOCOL_ID = 1243;
     public static final String PROTOCOL_NAME = "ChordWithSalt";
 
@@ -51,7 +54,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
     public ChordWithSalt(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
-
+        logger.info("Building Chord");
         registerNotification(MessageDeliver.NOTIFICATION_ID, MessageDeliver.NOTIFICATION_NAME);
 
         registerRequestHandler(BCastRequest.REQUEST_ID, uponRouteRequest);
@@ -75,17 +78,17 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
     }
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
-        System.out.println("Debug:");
-        System.out.println(myId);
-        System.out.println("Predecessor: " + predecessor);
-        System.out.println("Successor: " + successor);
-        for (FingerEntry f : fingers) {
-            System.out.println(f);
-        }
-        System.out.println("Owner of:");
-        for(String topic : this.topics.keySet()){
-            System.out.println(topic);
-        }
+//        System.out.println("Debug:");
+//        System.out.println(myId);
+//        System.out.println("Predecessor: " + predecessor);
+//        System.out.println("Successor: " + successor);
+//        for (FingerEntry f : fingers) {
+//            System.out.println(f);
+//        }
+//        System.out.println("Owner of:");
+//        for(String topic : this.topics.keySet()){
+//            System.out.println(topic);
+//        }
     };
 
     @Override

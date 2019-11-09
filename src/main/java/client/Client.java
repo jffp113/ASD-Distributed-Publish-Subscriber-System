@@ -36,6 +36,7 @@ public class Client implements INotificationConsumer {
         chordWithSalt.init(properties);
         babel.registerProtocol(chordWithSalt);
 
+
         this.pubSub = new PublishSubscribe(net);
         this.pubSub.init(properties);
         babel.registerProtocol(pubSub);
