@@ -7,13 +7,13 @@ import network.ISerializer;
 
 import java.net.UnknownHostException;
 
-public class FindFingerSuccessorReplyMessage extends ProtocolMessage {
+public class FindFingerSuccessorResponseMessage extends ProtocolMessage {
     public static short MSG_CODE = 10091;
 
     private Host successor;
     private int next;
 
-    public FindFingerSuccessorReplyMessage(Host successor, int next) {
+    public FindFingerSuccessorResponseMessage(Host successor, int next) {
         super(MSG_CODE);
         this.successor = successor;
         this.next = next;
@@ -27,21 +27,21 @@ public class FindFingerSuccessorReplyMessage extends ProtocolMessage {
         return next;
     }
 
-    public static final ISerializer<FindFingerSuccessorReplyMessage> serializer = new ISerializer<FindFingerSuccessorReplyMessage>() {
+    public static final ISerializer<FindFingerSuccessorResponseMessage> serializer = new ISerializer<FindFingerSuccessorResponseMessage>() {
         @Override
-        public void serialize(FindFingerSuccessorReplyMessage m, ByteBuf out) {
+        public void serialize(FindFingerSuccessorResponseMessage m, ByteBuf out) {
             m.successor.serialize(out);
             out.writeInt(m.next);
         }
 
         @Override
-        public FindFingerSuccessorReplyMessage deserialize(ByteBuf in) throws UnknownHostException {
+        public FindFingerSuccessorResponseMessage deserialize(ByteBuf in) throws UnknownHostException {
             Host successor = Host.deserialize(in);
-            return new FindFingerSuccessorReplyMessage(successor, in.readInt());
+            return new FindFingerSuccessorResponseMessage(successor, in.readInt());
         }
 
         @Override
-        public int serializedSize(FindFingerSuccessorReplyMessage m) {
+        public int serializedSize(FindFingerSuccessorResponseMessage m) {
             return m.successor.serializedSize() + Integer.BYTES;
         }
     };
