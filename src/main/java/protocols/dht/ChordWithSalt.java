@@ -53,6 +53,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
     private int next;
 
     public ChordWithSalt(INetwork net) throws Exception {
+
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
         logger.info("Building Chord");
         registerNotification(MessageDeliver.NOTIFICATION_ID, MessageDeliver.NOTIFICATION_NAME);
