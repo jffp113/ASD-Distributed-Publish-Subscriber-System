@@ -1,6 +1,9 @@
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.Set;
+
 
 public class EmptyTest {
     static int k = 32;
@@ -23,6 +26,12 @@ public class EmptyTest {
 
     @Test
     public void test1(){
+       /* HashMap<String, Set<String>> jorge= new HashMap<>(100);
+        jorge.put("jorege","jorege");
+        jorge.put("claudio","laudio");
+
+        System.out.println(jor);*/
+
         Assert.assertTrue(isIdBetween(4,0,4,true));
         Assert.assertFalse(isIdBetween(4,0,4,false));
         Assert.assertFalse(isIdBetween(4,0,3,true));
