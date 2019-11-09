@@ -9,8 +9,13 @@ import babel.protocol.event.ProtocolMessage;
 import network.Host;
 import network.INetwork;
 import network.INodeListener;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import protocols.dht.messages.*;
-import protocols.dht.messagesTopics.*;
+import protocols.dht.messagesTopics.DeliverMessage;
+import protocols.dht.messagesTopics.DisseminateRequest;
+import protocols.dht.messagesTopics.ForwardDisseminateMessage;
+import protocols.dht.messagesTopics.ForwardSunscribeMessage;
 import protocols.dht.notifications.MessageDeliver;
 import protocols.dht.requests.RouteRequest;
 import protocols.dht.requests.SubscribeRequest;
@@ -26,8 +31,10 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
+
 public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
+    final static Logger logger = LogManager.getLogger(ChordWithSalt.class.getName());
     public static final short PROTOCOL_ID = 1243;
     public static final String PROTOCOL_NAME = "ChordWithSalt";
 
@@ -37,7 +44,6 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
     public static final String STABILIZE_PERIOD = "stabilizePeriod";
     public static final String FIX_FINGERS_INIT = "fixFingersInit";
     public static final String FIX_FINGERS_PERIOD = "fixFingersPeriod";
-
 
     private int m;
     private int k;
@@ -49,7 +55,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
     public ChordWithSalt(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
-
+        logger.info("Building Chord");
         registerNotification(MessageDeliver.NOTIFICATION_ID, MessageDeliver.NOTIFICATION_NAME);
 
         registerRequestHandler(BCastRequest.REQUEST_ID, uponRouteRequest);
@@ -81,7 +87,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
             System.out.println(f);
         }
         System.out.println("Owner of:");
-        for (String topic : this.topics.keySet()) {
+        for(String topic : this.topics.keySet()){
             System.out.println(topic);
         }
 
@@ -197,12 +203,12 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
 
     };
 
-    private void changePredecessor(Host predecessor) {
+    private void changePredecessor(Host predecessor){
         this.predecessor = predecessor;
         for (FingerEntry finger : fingers) {
             if (finger.host.equals(myself)) {
-                int predessorID = calculateId(predecessor.toString());
-                if (!isIdBetween(finger.start, calculateId(predecessor.toString()), myId, true)) {
+                int predecessorID = calculateId(predecessor.toString());
+                if (!isIdBetween(finger.start, predecessorID, myId, true)) {
                     finger.host = successor;
                     finger.hostId = fingers.get(0).hostId;
                 }
@@ -247,13 +253,13 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
         int successorId = calculateId(this.successor.toString());
 
         if (isIdBetween(nodeId, myId, successorId, true)) {
-            sendMessageSideChannel(new FindSuccessorResponseMessage(successor, fingers), message.getRequesterNode());
+            sendMessageSideChannel(new FindSuccessorResponseMessage(successor,fingers), message.getRequesterNode());
         } else {
             Host closestPrecedingNode = closestPrecedingNode(nodeId);
             if (!closestPrecedingNode.equals(myself))
                 sendMessageSideChannel(message, closestPrecedingNode);
             else
-                sendMessageSideChannel(new FindSuccessorResponseMessage(myself, fingers), message.getRequesterNode());
+                sendMessageSideChannel(new FindSuccessorResponseMessage(myself,fingers), message.getRequesterNode());
         }
     };
 
@@ -266,14 +272,14 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
     };
 
     private void fillMyTable(List<FingerEntry> fingerEntryList) {
-        for (int i = 1; i < m - 1; i++) {
-            FingerEntry f = fingers.get(i + 1);
-            if (isIdBetween(fingers.get(i + 1).start, myId, fingers.get(i).hostId, false)) {
+        for(int i = 1; i < m - 1; i++){
+            FingerEntry f = fingers.get(i+1);
+            if(isIdBetween(fingers.get(i+1).start,myId,fingers.get(i).hostId,false)){
                 FingerEntry pre = fingers.get(i);
                 f.host = pre.host;
                 f.hostId = pre.hostId;
-            } else {
-                Host suc = findSucc(i + 1, fingerEntryList); //TODO FIX THIS FUCKING THING
+            }else{
+                Host suc = findSucc(i + 1,fingerEntryList); //TODO FIX THIS FUCKING THING
                 f.host = suc;
                 f.hostId = calculateId(suc.toString());
             }
@@ -281,11 +287,11 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
     }
 
     private Host findSucc(int i, List<FingerEntry> fingerEntryList) {
-        return closestPrecedingNode(i, fingerEntryList, fingerEntryList.get(1).host);
+       return closestPrecedingNode(i,fingerEntryList,fingerEntryList.get(1).host);
     }
 
     private Host closestPrecedingNode(int nodeId) {
-        return closestPrecedingNode(nodeId, fingers, myself);
+        return closestPrecedingNode(nodeId,fingers,myself);
     }
 
     private Host closestPrecedingNode(int nodeId, List<FingerEntry> fingers, Host defaultHost) {
@@ -453,7 +459,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
         Host closestPrecedingNode = closestPrecedingNode(topicId);
         boolean forMe = myself.equals(closestPrecedingNode);
         if (forMe) {
-            if (topics.get(topic) == null)
+            if(topics.get(topic) == null)
                 return;
 
             triggerNotification(new MessageDeliver(topic, message));
