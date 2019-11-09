@@ -58,7 +58,7 @@ public class ChordWithSalt extends GenericProtocol implements INodeListener {
         logger.info("Building Chord");
         registerNotification(MessageDeliver.NOTIFICATION_ID, MessageDeliver.NOTIFICATION_NAME);
 
-        registerRequestHandler(BCastRequest.REQUEST_ID, uponRouteRequest);
+        registerRequestHandler(RouteRequest.REQUEST_ID, uponRouteRequest);
 
         registerTimerHandler(StabilizeTimer.TimerCode, uponStabilize);
         registerTimerHandler(FixFingersTimer.TimerCode, uponFixFingers);
