@@ -156,4 +156,9 @@ public class DeliverMessage extends ProtocolMessage {
     public MessageType getMessageType() {
         return messageType;
     }
+
+    @Override
+    public String toString() {
+        return "[" + topic + "," + message + "," + messageType + "]";
+    }
 }
