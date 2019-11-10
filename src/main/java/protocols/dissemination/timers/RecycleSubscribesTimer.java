@@ -1,11 +1,11 @@
-package protocols.dht.timers;
+package protocols.dissemination.timers;
 
 import babel.timer.ProtocolTimer;
 
-public class RefreshTopics extends ProtocolTimer {
+public class RecycleSubscribesTimer extends ProtocolTimer {
     public static final short TimerCode = 21;
 
-    public RefreshTopics() {
+    public RecycleSubscribesTimer() {
         super(TimerCode);
     }
 
@@ -13,5 +13,4 @@ public class RefreshTopics extends ProtocolTimer {
     public Object clone() {
         return this;
     }
-
 }

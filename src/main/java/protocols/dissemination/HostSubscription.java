@@ -2,7 +2,9 @@ package protocols.dissemination;
 
 import network.Host;
 
-public class HostSubscription implements Comparable<HostSubscription> {
+import java.util.Objects;
+
+public class HostSubscription {
 
     private final Host host;
     private final long subscriptionTime;
@@ -16,12 +18,19 @@ public class HostSubscription implements Comparable<HostSubscription> {
         return host;
     }
 
-    public boolean isTimeExpired(long offset){
+    public boolean isTimeExpired(long offset) {
         return System.currentTimeMillis() - this.subscriptionTime > offset;
     }
 
     @Override
-    public int compareTo(HostSubscription o) {
-        return this.host.compareTo(o.host);
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        HostSubscription that = (HostSubscription) o;
+        return host.equals(that.host);
+    }
+
+    @Override
+    public int hashCode() {
+        return this.host.hashCode();
     }
 }
