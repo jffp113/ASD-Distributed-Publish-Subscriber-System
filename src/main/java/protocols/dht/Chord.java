@@ -169,7 +169,7 @@ public class Chord extends GenericProtocol implements INodeListener {
 
         Host host = closestPrecedingNode(calculateId(request.getTopic()));
         sendMessage(request.getMessageToRoute(),host);
-
+        logger.info(String.format("[%d]%s Sending To %s Message: %s",myId,myself,host,request.getMessageToRoute()));
     };
 
     private final ProtocolMessageHandler uponFindSuccessorRequestMessage = (protocolMessage) -> {
@@ -330,7 +330,7 @@ public class Chord extends GenericProtocol implements INodeListener {
 
         for (int i = m - 1; i >= 0; i--) {
             finger = fingers.get(i);
-            if (isIdBetween(finger.getHostId(), calculateId(defaultHost.toString()), nodeId, false)) {
+            if (isIdBetween(finger.getHostId(), calculateId(defaultHost.toString()), nodeId, true)) {
                 return finger.getHost();
             }
         }
