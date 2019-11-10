@@ -24,15 +24,11 @@ public class Scribe extends GenericProtocol {
     public static final short PROTOCOL_ID = 14153;
     public static final String PROTOCOL_NAME = "Scribe";
 
-
-    private final HashMap<String, Set<HostSubscription>> topicTree;
+    private HashMap<String, Set<HostSubscription>> topicTree;
     private Set<String> topicSubs;
-
 
     public Scribe(INetwork net) throws Exception {
         super(PROTOCOL_NAME,PROTOCOL_ID, net);
-        this.topicTree = new HashMap<>();
-        this.topicSubs = new HashSet<>();
         registerReplyHandler(RouteRequest.REQUEST_ID, uponRouteDeliver);
         registerRequestHandler(DisseminateRequest.REQUEST_ID,uponDisseminateRequest);
     }
@@ -40,7 +36,8 @@ public class Scribe extends GenericProtocol {
     @Override
     public void init(Properties properties) {
         registerNotification(MessageDeliver.NOTIFICATION_ID,MessageDeliver.NOTIFICATION_NAME);
-
+        this.topicTree = new HashMap<>();
+        this.topicSubs = new HashSet<>();
     }
 
     private final ProtocolReplyHandler uponRouteDeliver = (request) -> {
@@ -66,6 +63,7 @@ public class Scribe extends GenericProtocol {
             case SUBSCRIBE: processSubscribe(message); break;
             case UNSUBSCRIBE: processUnsubscribe(message); break;
             case PUBLICATION: processPublication(message); break;
+            default: //Drop Message process
         }
     }
 
@@ -75,7 +73,7 @@ public class Scribe extends GenericProtocol {
         }
 
         if(this.topicSubs.contains(message.getTopic())){
-            triggerNotification(new MessageDeliver(message.getTopic(), message.getTopic()));
+            triggerNotification(new MessageDeliver(message.getTopic(), message.getMessage()));
         }
     }
 
@@ -130,6 +128,9 @@ public class Scribe extends GenericProtocol {
         }
     }
 
+    /**
+     * Handler dissemination request from the upper level
+     */
     private ProtocolRequestHandler uponDisseminateRequest = (protocolRequest) -> {
         DisseminateRequest request = (DisseminateRequest)protocolRequest;
         DeliverMessage message = (DeliverMessage)request.getMessage();
@@ -138,6 +139,7 @@ public class Scribe extends GenericProtocol {
             addToTopics(message.getTopic(),myself);
             topicSubs.add(message.getTopic());
         }
+        requestRoute(message);
     };
 
 }
