@@ -6,6 +6,7 @@ import babel.notification.ProtocolNotification;
 import network.INetwork;
 import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
+import protocols.dissemination.Scribe;
 import protocols.publishsubscribe.PublishSubscribe;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
@@ -29,10 +30,13 @@ public class Client implements INotificationConsumer {
       /*  HyParView hyParView = new HyParView(net);
         hyParView.init(properties);
         babel.registerProtocol(hyParView);*/
-        Chord chordWithSalt = new Chord(net);
-        chordWithSalt.init(properties);
-        babel.registerProtocol(chordWithSalt);
+        Chord chord = new Chord(net);
+        chord.init(properties);
+        babel.registerProtocol(chord);
 
+        Scribe scribe = new Scribe(net);
+        scribe.init(properties);
+        babel.registerProtocol(scribe);
 
         this.pubSub = new PublishSubscribe(net);
         this.pubSub.init(properties);
@@ -42,7 +46,7 @@ public class Client implements INotificationConsumer {
         bCast.init(properties);
         babel.registerProtocol(bCast);*/
 
-        chordWithSalt.subscribeNotification(MessageDeliver.NOTIFICATION_ID, pubSub);
+        scribe.subscribeNotification(MessageDeliver.NOTIFICATION_ID, pubSub);
         pubSub.subscribeNotification(PBDeliver.NOTIFICATION_ID, this);
 
         babel.start();

@@ -4,9 +4,11 @@ import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.handlers.ProtocolReplyHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.protocol.GenericProtocol;
-import babel.protocol.event.ProtocolMessage;
 import network.Host;
 import network.INetwork;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
 import protocols.dht.requests.RouteRequest;
 import protocols.dissemination.message.DeliverMessage;
@@ -19,7 +21,7 @@ import java.util.Properties;
 import java.util.Set;
 
 public class Scribe extends GenericProtocol {
-
+    final static Logger logger = LogManager.getLogger(Scribe.class.getName());
     public static final short PROTOCOL_ID = 14153;
     public static final String PROTOCOL_NAME = "Scribe";
 
@@ -28,26 +30,27 @@ public class Scribe extends GenericProtocol {
 
     public Scribe(INetwork net) throws Exception {
         super(PROTOCOL_NAME,PROTOCOL_ID, net);
-        registerReplyHandler(RouteRequest.REQUEST_ID, uponRouteDeliver);
+        registerReplyHandler(RouteDeliver.REQUEST_ID, uponRouteDeliver);
         registerRequestHandler(DisseminateRequest.REQUEST_ID,uponDisseminateRequest);
     }
 
     @Override
     public void init(Properties properties) {
+        logger.info("Scribe Starting on " + myself.toString());
         registerNotification(MessageDeliver.NOTIFICATION_ID,MessageDeliver.NOTIFICATION_NAME);
         this.topicTree = new HashMap<>();
         this.topicSubs = new HashSet<>();
     }
 
     private final ProtocolReplyHandler uponRouteDeliver = (request) -> {
+        logger.info(String.format("Received %s route request",myself));
         RouteDeliver deliver = (RouteDeliver)request;
         processMessage(deliver);
-        requestRoute(deliver.getMessageDeliver());
     };
 
-    private void requestRoute(ProtocolMessage message){
-        RouteRequest routeRequest = new RouteRequest(message);
-        routeRequest.setDestination(ChordWithSalt.PROTOCOL_ID);
+    private void requestRoute(DeliverMessage message){
+        RouteRequest routeRequest = new RouteRequest(message,message.getTopic());
+        routeRequest.setDestination(Chord.PROTOCOL_ID);
         try {
             sendRequest(routeRequest);
         } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
@@ -68,20 +71,26 @@ public class Scribe extends GenericProtocol {
 
     private void processPublication(DeliverMessage message) {
         for(HostSubscription host : topicTree.get(message.getTopic())){
-            sendMessageSideChannel(message,host.getHost());
+            if(!host.getHost().equals(myself))
+                sendMessageSideChannel(message,host.getHost());
         }
 
-        if(this.topicSubs.contains(message.getTopic())){
+        if(subscribedTo(message.getTopic())){
             triggerNotification(new MessageDeliver(message.getTopic(), message.getMessage()));
         }
+
     }
 
     private void processUnsubscribe(DeliverMessage message) {
         removeFromTopics(message.getTopic(),message.getHost());
+        requestRoute(message);
     }
 
     private void processSubscribe(DeliverMessage message) {
-        addToTopics(message.getTopic(),message.getHost());
+        if(!topicTree.containsKey(message.getTopic())){
+            requestRoute(message);
+        }
+        addToTopics(message.getTopic(),message.getFrom());
     }
 
     /**
