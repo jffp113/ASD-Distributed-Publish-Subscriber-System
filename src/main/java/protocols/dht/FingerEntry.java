@@ -6,15 +6,33 @@ import network.Host;
 import java.net.UnknownHostException;
 
 public class FingerEntry {
-
-
-    public int start;
-    public int hostId;
-    public Host host;
+    private int start;
+    private int hostId;
+    private Host host;
 
     public FingerEntry(int start, int hostId, Host host) {
         this.start = start;
         this.hostId = hostId;
+        this.host = host;
+    }
+
+    public Host getHost() {
+        return host;
+    }
+
+    public int getStart() {
+        return start;
+    }
+
+    public int getHostId() {
+        return hostId;
+    }
+
+    public void setHostId(int hostId) {
+        this.hostId = hostId;
+    }
+
+    public void setHost(Host host) {
         this.host = host;
     }
 
@@ -32,6 +50,9 @@ public class FingerEntry {
         return 2 * Integer.BYTES + 6;
     }
 
+    public FingerEntry clone() {
+        return new FingerEntry(start, hostId, host);
+    }
 
     @Override
     public String toString() {

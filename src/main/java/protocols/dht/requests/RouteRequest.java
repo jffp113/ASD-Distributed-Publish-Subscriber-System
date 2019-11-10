@@ -1,27 +1,20 @@
 package protocols.dht.requests;
 
+import babel.protocol.event.ProtocolMessage;
 import babel.requestreply.ProtocolRequest;
 
 public class RouteRequest extends ProtocolRequest {
 
-    public static final short REQUEST_ID = 20234;
-    private static final String PAYLOAD_SEPARATOR = "|";
+    public static final short REQUEST_ID = 22254;
 
-    private String message;
-    private int id;
+    private final ProtocolMessage messageToRoute;
 
-    public RouteRequest(String message, int id) {
-        super(RouteRequest.REQUEST_ID);
-        this.message = message;
-        this.id = id;
+    public RouteRequest(ProtocolMessage messageToRoute) {
+        super(REQUEST_ID);
+        this.messageToRoute = messageToRoute;
     }
 
-    public String getMessage() {
-        return message;
+    public ProtocolMessage getMessageToRoute() {
+        return messageToRoute;
     }
-
-    public int getid() {
-        return id;
-    }
-
 }

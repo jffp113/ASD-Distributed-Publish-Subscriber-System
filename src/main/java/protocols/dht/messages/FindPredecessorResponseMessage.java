@@ -8,13 +8,13 @@ import network.ISerializer;
 import java.net.UnknownHostException;
 
 
-public class FindPredecessorReplyMessage extends ProtocolMessage {
+public class FindPredecessorResponseMessage extends ProtocolMessage {
 
     public final static short MSG_CODE = 23482;
     private Host predecessor;
 
-    public FindPredecessorReplyMessage(Host predecessor) {
-        super(FindPredecessorReplyMessage.MSG_CODE);
+    public FindPredecessorResponseMessage(Host predecessor) {
+        super(FindPredecessorResponseMessage.MSG_CODE);
         this.predecessor = predecessor;
     }
 
@@ -22,21 +22,21 @@ public class FindPredecessorReplyMessage extends ProtocolMessage {
         return predecessor;
     }
 
-    public static final ISerializer<FindPredecessorReplyMessage> serializer = new ISerializer<FindPredecessorReplyMessage>() {
+    public static final ISerializer<FindPredecessorResponseMessage> serializer = new ISerializer<FindPredecessorResponseMessage>() {
         @Override
-        public void serialize(FindPredecessorReplyMessage m, ByteBuf out) {
+        public void serialize(FindPredecessorResponseMessage m, ByteBuf out) {
             m.predecessor.serialize(out);
         }
 
         @Override
-        public FindPredecessorReplyMessage deserialize(ByteBuf in) throws UnknownHostException {
+        public FindPredecessorResponseMessage deserialize(ByteBuf in) throws UnknownHostException {
             Host predecessor = Host.deserialize(in);
 
-            return new FindPredecessorReplyMessage(predecessor);
+            return new FindPredecessorResponseMessage(predecessor);
         }
 
         @Override
-        public int serializedSize(FindPredecessorReplyMessage m) {
+        public int serializedSize(FindPredecessorResponseMessage m) {
             return m.predecessor.serializedSize();
         }
     };

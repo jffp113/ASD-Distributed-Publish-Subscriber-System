@@ -4,11 +4,8 @@ import babel.Babel;
 import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import network.INetwork;
-import protocols.dht.ChordWithSalt;
+import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
-import protocols.floadbroadcastrecovery.GossipBCast;
-import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
-import protocols.partialmembership.HyParView;
 import protocols.publishsubscribe.PublishSubscribe;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
@@ -32,7 +29,7 @@ public class Client implements INotificationConsumer {
       /*  HyParView hyParView = new HyParView(net);
         hyParView.init(properties);
         babel.registerProtocol(hyParView);*/
-        ChordWithSalt chordWithSalt = new ChordWithSalt(net);
+        Chord chordWithSalt = new Chord(net);
         chordWithSalt.init(properties);
         babel.registerProtocol(chordWithSalt);
 
