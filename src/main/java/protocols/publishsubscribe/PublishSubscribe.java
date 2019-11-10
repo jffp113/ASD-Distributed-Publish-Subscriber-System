@@ -7,12 +7,9 @@ import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
 import network.INetwork;
 import persistence.PersistentMap;
-import protocols.dht.ChordWithSalt;
+import protocols.dht.Chord;
 import protocols.dht.messagesTopics.DisseminateRequest;
 import protocols.dht.notifications.MessageDeliver;
-import protocols.floadbroadcastrecovery.GossipBCast;
-import protocols.floadbroadcastrecovery.notifcations.BCastDeliver;
-import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
 import protocols.publishsubscribe.requests.SubscribeRequest;
@@ -39,7 +36,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         boolean isSubscribe = subscribeRequest.isSubscribe();
         protocols.dht.requests.SubscribeRequest subscribeReq =
                 new protocols.dht.requests.SubscribeRequest(subscribeRequest.getTopic(), isSubscribe);
-        subscribeReq.setDestination(ChordWithSalt.PROTOCOL_ID);
+        subscribeReq.setDestination(Chord.PROTOCOL_ID);
 
         try {
             sendRequest(subscribeReq);
@@ -76,7 +73,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         PublishRequest pRequest = (PublishRequest) publishRequest;
 
         DisseminateRequest disseminateRequest = new DisseminateRequest(pRequest.getTopic(), pRequest.getMessage());
-        disseminateRequest.setDestination(ChordWithSalt.PROTOCOL_ID);
+        disseminateRequest.setDestination(Chord.PROTOCOL_ID);
 
         try {
             this.sendRequest(disseminateRequest);

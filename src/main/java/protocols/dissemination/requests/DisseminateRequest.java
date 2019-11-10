@@ -1,7 +1,6 @@
 package protocols.dissemination.requests;
 
 import babel.protocol.event.ProtocolMessage;
-import babel.requestreply.ProtocolReply;
 import babel.requestreply.ProtocolRequest;
 
 public class DisseminateRequest extends ProtocolRequest {
