@@ -10,7 +10,6 @@ import network.INetwork;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.dht.Chord;
-import protocols.dht.messagesTopics.RefreshTopicsMessage;
 import protocols.dht.notifications.MessageDeliver;
 import protocols.dht.requests.RouteRequest;
 import protocols.dissemination.message.DeliverMessage;
@@ -88,7 +87,7 @@ public class Scribe extends GenericProtocol {
     private final ProtocolReplyHandler uponRouteDeliver = (request) -> {
         logger.info(String.format("Received %s route request", myself));
         RouteDeliver deliver = (RouteDeliver) request;
-        processMessage(deliver);
+        processMessage((DeliverMessage) deliver.getMessageDeliver());
     };
 
     private void requestRoute(DeliverMessage message) {
@@ -101,8 +100,7 @@ public class Scribe extends GenericProtocol {
         }
     }
 
-    private void processMessage(RouteDeliver deliver) {
-        DeliverMessage message = (DeliverMessage) deliver.getMessageDeliver();
+    private void processMessage(DeliverMessage message) {
 
         switch (message.getMessageType()) {
             case SUBSCRIBE:
@@ -122,10 +120,10 @@ public class Scribe extends GenericProtocol {
     private void processPublication(DeliverMessage message) {
         String topic = message.getTopic();
         Set<HostSubscription> hostSubscriptionSet = topicTree.get(topic);
-        if(hostSubscriptionSet != null){
+        if (hostSubscriptionSet != null) {
             Set<HostSubscription> hostSubscriptions = new HashSet<>(hostSubscriptionSet);
             for (HostSubscription host : hostSubscriptions) {
-                if (!host.getHost().equals(myself))
+                if (!host.getHost().equals(myself) && !host.getHost().equals(message.getFrom()))
                     sendMessageSideChannel(message, host.getHost());
             }
         }
@@ -133,7 +131,6 @@ public class Scribe extends GenericProtocol {
         if (subscribedTo(topic)) {
             triggerNotification(new MessageDeliver(topic, message.getMessage()));
         }
-
     }
 
     private void processUnsubscribe(DeliverMessage message) {
@@ -167,9 +164,11 @@ public class Scribe extends GenericProtocol {
      */
     private void addToTopics(String topic, Host host) {
         Set<HostSubscription> hostSet;
+
         if (!topicTree.containsKey(topic)) {
             topicTree.put(topic, new HashSet<>());
         }
+
         hostSet = topicTree.get(topic);
         HostSubscription subscription = new HostSubscription(host, System.currentTimeMillis());
         hostSet.remove(subscription);
@@ -205,6 +204,10 @@ public class Scribe extends GenericProtocol {
             addToTopics(message.getTopic(), myself);
             topicSubs.add(message.getTopic());
         }
+        //  message.setHost(myself);
+
+        // processMessage(message);
+
         requestRoute(message);
     };
 

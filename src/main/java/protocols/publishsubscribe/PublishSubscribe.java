@@ -31,8 +31,11 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         String topic = subscribeRequest.getTopic();
         boolean isSubscribe = subscribeRequest.isSubscribe();
 
+        DeliverMessage message = new DeliverMessage(topic, isSubscribe, myself);
+        message.setHost(myself);
+
         DisseminateRequest disseminateRequest =
-                new DisseminateRequest(new DeliverMessage(subscribeRequest.getTopic(), isSubscribe,myself));
+                new DisseminateRequest(message);
         disseminateRequest.setDestination(Scribe.PROTOCOL_ID);
 
         try {
@@ -53,8 +56,10 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     private ProtocolRequestHandler uponPublishRequest = (publishRequest) -> {
         PublishRequest pRequest = (PublishRequest) publishRequest;
 
+        DeliverMessage message = new DeliverMessage(pRequest.getTopic(), pRequest.getMessage());
+
         DisseminateRequest disseminateRequest =
-                new DisseminateRequest(new DeliverMessage(pRequest.getTopic(), pRequest.getMessage()));
+                new DisseminateRequest(message);
         disseminateRequest.setDestination(Scribe.PROTOCOL_ID);
 
         try {

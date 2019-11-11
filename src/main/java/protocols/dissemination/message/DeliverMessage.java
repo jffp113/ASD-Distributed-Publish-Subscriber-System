@@ -21,7 +21,6 @@ public class DeliverMessage extends ProtocolMessage {
         super(MSG_CODE);
     }
 
-
     public DeliverMessage(String topic, String message) {
         super(MSG_CODE);
         this.topic = topic;
@@ -36,7 +35,7 @@ public class DeliverMessage extends ProtocolMessage {
         this.messageType = toSubscribe? MessageType.SUBSCRIBE : MessageType.UNSUBSCRIBE;
     }
 
-    private void setHost(Host host) {
+    public void setHost(Host host) {
         this.host = host;
     }
 

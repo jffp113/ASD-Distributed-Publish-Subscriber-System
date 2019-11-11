@@ -164,8 +164,8 @@ public class Chord extends GenericProtocol implements INodeListener {
     private final ProtocolRequestHandler uponRouteRequest = (protocolRequest) -> {
         RouteRequest request = (RouteRequest) protocolRequest;
         logger.info(String.format("Process [%d]%s Routing %s with Id=%d",myId,myself,request.getMessageToRoute(),calculateId(request.getTopic())));
-        if(isIdBetween(calculateId(request.getTopic()),calculateId(predecessor.toString()),myId,true))
-            return;
+       /* if(isIdBetween(calculateId(request.getTopic()),calculateId(predecessor.toString()),myId,true))
+            return;*/
 
         Host host = closestPrecedingNode(calculateId(request.getTopic()));
         sendMessage(request.getMessageToRoute(),host);
