@@ -138,13 +138,13 @@ public class Chord extends GenericProtocol implements INodeListener {
             sb.append(f + "\n");
         }
 
-        logger.debug(sb.toString());
+        logger.info(sb.toString());
     };
 
     private void join(Host node) {
 
         addNetworkPeer(node);
-        sendMessage(new FindSuccessorRequestMessage(myId, myself), node);
+        sendMessageSideChannel(new FindSuccessorRequestMessage(myId, myself), node);
     }
 
     private void createRing() {

@@ -77,7 +77,7 @@
         <dependency>
             <groupId>pt.unl.fct.di.novasys</groupId>
             <artifactId>babel-core</artifactId>
-            <version>0.3.8-alpha</version>
+            <version>0.3.9-alpha</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>

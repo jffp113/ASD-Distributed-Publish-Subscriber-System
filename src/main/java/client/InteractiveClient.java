@@ -19,6 +19,7 @@ public class InteractiveClient {
     private static final String UNSUBSCRIBE_TEXT = "Unsubscribing: %s\n";
     private static final String PUBLISH_TEXT = "Publishing in topic %s: %s\n";
     private static final String INVALID_COMMAND = "Invalid command type help.";
+    public static final String INVALID_NUMBER_OF_ARGUMENTS = "Invalid number of arguments";
     private static String EMPTY_STRING = "";
 
     public static void main(String[] args) throws Exception {
@@ -40,6 +41,10 @@ public class InteractiveClient {
                     c.unsubscribe(topic);
                     break;
                 case PUBLISH:
+                    if(input_array.length != 3) {
+                        System.out.println(INVALID_NUMBER_OF_ARGUMENTS);
+                        break;
+                    }
                     System.out.printf(PUBLISH_TEXT, topic, getMessage(input_array));
                     c.publish(topic, getMessage(input_array));
                     break;
