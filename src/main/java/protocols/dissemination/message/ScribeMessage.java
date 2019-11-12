@@ -8,7 +8,7 @@ import protocols.dissemination.MessageType;
 
 import java.net.UnknownHostException;
 
-public class DeliverMessage extends ProtocolMessage {
+public class ScribeMessage extends ProtocolMessage {
 
     public static short MSG_CODE = 16427;
 
@@ -17,22 +17,22 @@ public class DeliverMessage extends ProtocolMessage {
     private MessageType messageType;
     private Host host;
 
-    private DeliverMessage() {
+    private ScribeMessage() {
         super(MSG_CODE);
     }
 
-    public DeliverMessage(String topic, String message) {
+    public ScribeMessage(String topic, String message) {
         super(MSG_CODE);
         this.topic = topic;
         this.message = message;
         this.messageType = MessageType.PUBLICATION;
     }
 
-    public DeliverMessage(String topic,boolean toSubscribe,Host host) {
+    public ScribeMessage(String topic, boolean subscribe, Host host) {
         super(MSG_CODE);
         this.topic = topic;
         this.host = host;
-        this.messageType = toSubscribe? MessageType.SUBSCRIBE : MessageType.UNSUBSCRIBE;
+        this.messageType = subscribe ? MessageType.SUBSCRIBE : MessageType.UNSUBSCRIBE;
     }
 
     public void setHost(Host host) {
@@ -47,9 +47,9 @@ public class DeliverMessage extends ProtocolMessage {
         this.messageType = messageType;
     }
 
-    private static final ISerializer<DeliverMessage> serializerPublication = new ISerializer<DeliverMessage>() {
+    private static final ISerializer<ScribeMessage> serializerPublication = new ISerializer<ScribeMessage>() {
         @Override
-        public void serialize(DeliverMessage m, ByteBuf out) {
+        public void serialize(ScribeMessage m, ByteBuf out) {
             out.writeInt(m.topic.length());
             out.writeBytes(m.topic.getBytes());
             out.writeInt(m.message.length());
@@ -57,7 +57,7 @@ public class DeliverMessage extends ProtocolMessage {
         }
 
         @Override
-        public DeliverMessage deserialize(ByteBuf in) {
+        public ScribeMessage deserialize(ByteBuf in) {
             byte[] topicBytes = new byte[in.readInt()];
             in.readBytes(topicBytes);
             String topic = new String(topicBytes);
@@ -66,30 +66,30 @@ public class DeliverMessage extends ProtocolMessage {
             in.readBytes(messageBytes);
             String message = new String(messageBytes);
 
-            return new DeliverMessage(topic, message);
+            return new ScribeMessage(topic, message);
         }
 
         @Override
-        public int serializedSize(DeliverMessage m) {
+        public int serializedSize(ScribeMessage m) {
             return 2 * Integer.BYTES + m.topic.length() + m.message.length();
         }
     };
 
-    private static final ISerializer<DeliverMessage> serializersSubscription = new ISerializer<DeliverMessage>() {
+    private static final ISerializer<ScribeMessage> serializersSubscription = new ISerializer<ScribeMessage>() {
         @Override
-        public void serialize(DeliverMessage m, ByteBuf out) {
+        public void serialize(ScribeMessage m, ByteBuf out) {
             out.writeInt(m.topic.length());
             out.writeBytes(m.topic.getBytes());
             m.getHost().serialize(out);
         }
 
         @Override
-        public DeliverMessage deserialize(ByteBuf in) throws UnknownHostException {
+        public ScribeMessage deserialize(ByteBuf in) throws UnknownHostException {
             byte[] topicBytes = new byte[in.readInt()];
             in.readBytes(topicBytes);
             String topic = new String(topicBytes);
 
-            DeliverMessage deliverMessage = new DeliverMessage();
+            ScribeMessage deliverMessage = new ScribeMessage();
 
             deliverMessage.setTopic(topic);
             deliverMessage.setHost(Host.deserialize(in));
@@ -97,33 +97,33 @@ public class DeliverMessage extends ProtocolMessage {
         }
 
         @Override
-        public int serializedSize(DeliverMessage m) {
+        public int serializedSize(ScribeMessage m) {
             return Integer.BYTES + m.topic.length() + 6;
         }
     };
 
-    public static final ISerializer<DeliverMessage> serializer = new ISerializer<DeliverMessage>() {
+    public static final ISerializer<ScribeMessage> serializer = new ISerializer<ScribeMessage>() {
         @Override
-        public void serialize(DeliverMessage m, ByteBuf out) {
+        public void serialize(ScribeMessage m, ByteBuf out) {
             out.writeInt(m.messageType.toString().length());
             out.writeBytes(m.messageType.toString().getBytes());
-            if(m.messageType.equals(MessageType.PUBLICATION)){
-                serializerPublication.serialize(m,out);
-            }else{
-                serializersSubscription.serialize(m,out);
+            if (m.messageType.equals(MessageType.PUBLICATION)) {
+                serializerPublication.serialize(m, out);
+            } else {
+                serializersSubscription.serialize(m, out);
             }
         }
 
         @Override
-        public DeliverMessage deserialize(ByteBuf in) throws UnknownHostException {
+        public ScribeMessage deserialize(ByteBuf in) throws UnknownHostException {
             byte[] messageTypeBytes = new byte[in.readInt()];
             in.readBytes(messageTypeBytes);
             MessageType messageType = MessageType.valueOf(new String(messageTypeBytes));
 
-            DeliverMessage message;
-            if(messageType.equals(MessageType.PUBLICATION)){
+            ScribeMessage message;
+            if (messageType.equals(MessageType.PUBLICATION)) {
                 message = serializerPublication.deserialize(in);
-            }else{
+            } else {
                 message = serializersSubscription.deserialize(in);
             }
             message.setMessageType(messageType);
@@ -132,10 +132,10 @@ public class DeliverMessage extends ProtocolMessage {
         }
 
         @Override
-        public int serializedSize(DeliverMessage m) {
+        public int serializedSize(ScribeMessage m) {
             return Integer.BYTES + m.messageType.toString().length() +
                     (m.getMessageType().equals(MessageType.PUBLICATION) ? serializerPublication.serializedSize(m) :
-                                                                        serializersSubscription.serializedSize(m));
+                            serializersSubscription.serializedSize(m));
         }
     };
 

@@ -5,20 +5,17 @@ import babel.handlers.ProtocolMessageHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.handlers.ProtocolTimerHandler;
 import babel.protocol.GenericProtocol;
-import babel.requestreply.ProtocolReply;
 import network.Host;
 import network.INetwork;
 import network.INodeListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.dht.messages.*;
-import protocols.dht.notifications.MessageDeliver;
 import protocols.dht.requests.RouteRequest;
 import protocols.dht.timers.FixFingersTimer;
 import protocols.dht.timers.StabilizeTimer;
-import protocols.dissemination.Scribe;
-import protocols.dissemination.message.DeliverMessage;
-import protocols.dissemination.requests.RouteDeliver;
+import protocols.dissemination.notifications.RouteDelivery;
+import protocols.dissemination.requests.RouteOk;
 import protocols.partialmembership.timers.DebugTimer;
 import utils.PropertiesUtils;
 
@@ -61,7 +58,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         registerNodeListener(this);
 
         // Requests and replies
-        registerNotification(MessageDeliver.NOTIFICATION_ID, MessageDeliver.NOTIFICATION_NAME);
+        registerNotification(RouteDelivery.NOTIFICATION_ID, RouteDelivery.NOTIFICATION_NAME);
         registerRequestHandler(RouteRequest.REQUEST_ID, uponRouteRequest);
 
         // Timers
@@ -85,7 +82,7 @@ public class Chord extends GenericProtocol implements INodeListener {
                 uponFindFingerSuccessorResponseMessage, FindFingerSuccessorResponseMessage.serializer);
         registerMessageHandler(FindFingerSuccessorRequestMessage.MSG_CODE,
                 uponFindFingerSuccessorRequestMessage, FindFingerSuccessorRequestMessage.serializer);
-        registerMessageHandler(DeliverMessage.MSG_CODE,uponMessage,DeliverMessage.serializer);
+        registerMessageHandler(ForwardMessage.MSG_CODE, uponForwardMessage, ForwardMessage.serializer);
     }
 
     @Override
@@ -163,13 +160,23 @@ public class Chord extends GenericProtocol implements INodeListener {
     //TODO: layer acima
     private final ProtocolRequestHandler uponRouteRequest = (protocolRequest) -> {
         RouteRequest request = (RouteRequest) protocolRequest;
-        logger.info(String.format("Process [%d]%s Routing %s with Id=%d",myId,myself,request.getMessageToRoute(),calculateId(request.getTopic())));
-       /* if(isIdBetween(calculateId(request.getTopic()),calculateId(predecessor.toString()),myId,true))
-            return;*/
+        logger.info(String.format("Process [%d]%s Routing %s with Id=%d", myId, myself, request.getMessageToRoute(), calculateId(request.getTopic())));
 
-        Host host = closestPrecedingNode(calculateId(request.getTopic()));
-        sendMessage(request.getMessageToRoute(),host);
-        logger.info(String.format("[%d]%s Sending To %s Message: %s",myId,myself,host,request.getMessageToRoute()));
+        if (isIdBetween(calculateId(request.getTopic()), calculateId(predecessor.toString()), myId, true)) {
+            triggerNotification(new RouteDelivery(request.getMessageToRoute()));
+            logger.info(String.format("[%d]%s RouteOk Message: %s", myId, myself, request.getMessageToRoute()));
+        } else {
+            Host host = closestPrecedingNode(calculateId(request.getTopic()));
+
+            try {
+                sendReply(new RouteOk(request.getTopic(), host));
+            } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
+                destinationProtocolDoesNotExist.printStackTrace();
+            }
+
+            sendMessage(new ForwardMessage(request.getMessageToRoute()), host);
+            logger.info(String.format("[%d]%s Sending To %s Message: %s", myId, myself, host, request.getMessageToRoute()));
+        }
     };
 
     private final ProtocolMessageHandler uponFindSuccessorRequestMessage = (protocolMessage) -> {
@@ -410,7 +417,7 @@ public class Chord extends GenericProtocol implements INodeListener {
     }
 
     private Host getNewHostFromTable(Host exclude) {
-        for(FingerEntry entry : fingers) {
+        for (FingerEntry entry : fingers) {
             if (!entry.getHost().equals(exclude) && !entry.getHost().equals(myself)) {
                 return entry.getHost();
             }
@@ -459,14 +466,10 @@ public class Chord extends GenericProtocol implements INodeListener {
         return true;
     }
 
-    private final ProtocolMessageHandler uponMessage = (message) -> {
-        ProtocolReply reply = new RouteDeliver(message);
-        reply.setDestination(Scribe.PROTOCOL_ID);
-        try {
-            sendReply(reply);
-        } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
-            destinationProtocolDoesNotExist.printStackTrace();
-        }
+    private final ProtocolMessageHandler uponForwardMessage = (message) -> {
+        RouteDelivery routeDelivery = new RouteDelivery(((ForwardMessage) message).getScribeMessage());
+
+        triggerNotification(routeDelivery);
     };
 
 }

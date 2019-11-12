@@ -1,9 +1,11 @@
 package protocols.dissemination;
 
 import babel.exceptions.DestinationProtocolDoesNotExist;
+import babel.handlers.ProtocolMessageHandler;
 import babel.handlers.ProtocolReplyHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.handlers.ProtocolTimerHandler;
+import babel.notification.INotificationConsumer;
 import babel.protocol.GenericProtocol;
 import network.Host;
 import network.INetwork;
@@ -12,15 +14,16 @@ import org.apache.logging.log4j.Logger;
 import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
 import protocols.dht.requests.RouteRequest;
-import protocols.dissemination.message.DeliverMessage;
-import protocols.dissemination.requests.DisseminateRequest;
-import protocols.dissemination.requests.RouteDeliver;
+import protocols.dissemination.message.ScribeMessage;
+import protocols.dissemination.notifications.RouteDelivery;
+import protocols.dissemination.requests.DisseminatePubRequest;
+import protocols.dissemination.requests.DisseminateSubRequest;
+import protocols.dissemination.requests.RouteOk;
 import protocols.dissemination.timers.RecycleSubscribesTimer;
 import protocols.dissemination.timers.RefreshSubscribesTimer;
 import utils.PropertiesUtils;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 
 public class Scribe extends GenericProtocol {
     final static Logger logger = LogManager.getLogger(Scribe.class.getName());
@@ -35,35 +38,122 @@ public class Scribe extends GenericProtocol {
     private static final String RECYCLE_SUBSCRIPTIONS_PERIOD = "recycleSubscriptionsPeriod";
 
     private Map<String, Set<HostSubscription>> topicTree;
-    private Set<String> topicSubs;
+    private Set<String> topics;
     private int subscriptionTTL;
 
     public Scribe(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
 
-        registerReplyHandler(RouteDeliver.REQUEST_ID, uponRouteDeliver);
-        registerRequestHandler(DisseminateRequest.REQUEST_ID, uponDisseminateRequest);
+        registerRequestHandler(DisseminatePubRequest.REQUEST_ID, uponDisseminatePubRequest);
+        registerRequestHandler(DisseminateSubRequest.REQUEST_ID, uponDisseminateSubRequest);
+        subscribeNotification(RouteDelivery.NOTIFICATION_NAME, uponRouteDelivery);
+        registerReplyHandler(RouteOk.REPLY_ID, uponRouteOk);
+
+        registerMessageHandler(ScribeMessage.MSG_CODE, uponScribeMessage, ScribeMessage.serializer);
+
+        registerNotification(MessageDeliver.NOTIFICATION_ID, MessageDeliver.NOTIFICATION_NAME);
 
         registerTimerHandler(RecycleSubscribesTimer.TimerCode, uponRecycleSubscribes);
         registerTimerHandler(RefreshSubscribesTimer.TimerCode, uponRefreshSubscribes);
+
     }
 
     @Override
     public void init(Properties properties) {
         logger.info("Scribe Starting on " + myself.toString());
-        registerNotification(MessageDeliver.NOTIFICATION_ID, MessageDeliver.NOTIFICATION_NAME);
         subscriptionTTL = PropertiesUtils.getPropertyAsInt(properties, SUBSCRIPTION_TTL);
 
-      /*  setupPeriodicTimer(new RecycleSubscribesTimer(),
+        this.topicTree = new HashMap<>();
+        this.topics = new HashSet<>();
+
+        /*
+        setupPeriodicTimer(new RecycleSubscribesTimer(),
                 PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_INIT),
                 PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_PERIOD));
         setupPeriodicTimer(new RefreshSubscribesTimer(),
                 PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_INIT),
                 PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_PERIOD));
-*/
-        this.topicTree = new ConcurrentHashMap<>();
-        this.topicSubs = Collections.synchronizedSet(new HashSet<>());
+        */
     }
+
+    /**
+     * Handler dissemination request from the upper level
+     */
+    private ProtocolRequestHandler uponDisseminateSubRequest = (protocolRequest) -> {
+        DisseminateSubRequest request = (DisseminateSubRequest) protocolRequest;
+        String topic = request.getTopic();
+        boolean subscribe = request.isSubscribe();
+
+        if (subscribe) {
+
+            topics.add(topic);
+
+            if (!topicTree.containsKey(topic)) {
+                ScribeMessage message = new ScribeMessage(topic, true, myself);
+
+                requestRoute(message);
+            }
+
+            addToTopicTree(topic, myself);
+
+        } else {
+            topics.remove(topic);
+            removeFromTopicTree(topic, myself);
+
+            Set<HostSubscription> peers = topicTree.get(topic);
+
+            ScribeMessage message = new ScribeMessage(topic, false, myself);
+            if (peers == null || peers.isEmpty()) {
+                requestRoute(message);
+            } else {
+                for (HostSubscription h : peers) {
+                    sendMessageSideChannel(message, h.getHost());
+                }
+            }
+        }
+    };
+
+    private ProtocolRequestHandler uponDisseminatePubRequest = (protocolRequest) -> {
+        DisseminatePubRequest request = (DisseminatePubRequest) protocolRequest;
+        String topic = request.getTopic();
+        String message = request.getMessage();
+
+        if (subscribedTo(topic)) {
+            triggerNotification(new MessageDeliver(topic, message));
+        }
+
+        Set<HostSubscription> peers = topicTree.get(topic);
+
+        if (peers != null) {
+            for (HostSubscription hSub : peers) {
+                Host h = hSub.getHost();
+                if (!h.equals(myself)) {
+                    ScribeMessage sMessage = new ScribeMessage(topic, message);
+                    sendMessageSideChannel(sMessage, h);
+                }
+            }
+
+        } else {
+            addToTopicTree(topic, myself);
+
+            ScribeMessage sMessage = new ScribeMessage(topic, message);
+            requestRoute(sMessage);
+        }
+
+    };
+
+    private final ProtocolReplyHandler uponRouteOk = (protocolReply) -> {
+        RouteOk routeOk = (RouteOk) protocolReply;
+
+        logger.info(String.format("[%s] Received route ok to %s", myself, routeOk.getForwardedTo()));
+        addToTopicTree(routeOk.getTopic(), routeOk.getForwardedTo());
+    };
+
+    private final INotificationConsumer uponRouteDelivery = (notification) -> {
+        logger.info(String.format("Received %s route request", myself));
+        RouteDelivery deliver = (RouteDelivery) notification;
+        processMessage((ScribeMessage) deliver.getMessage());
+    };
 
     private final ProtocolTimerHandler uponRecycleSubscribes = (ProtocolTimer) -> {
         for (String topic : topicTree.keySet()) {
@@ -71,26 +161,26 @@ public class Scribe extends GenericProtocol {
             for (HostSubscription hostSubscription : hostSubscriptions) {
                 if (hostSubscription.isTimeExpired(subscriptionTTL)) {
                     logger.info(String.format("Subscription of %s to topic %s expired", hostSubscription.getHost(), topic));
-                    removeFromTopics(topic, hostSubscription.getHost());
+                    removeFromTopicTree(topic, hostSubscription.getHost());
                 }
             }
         }
     };
 
+    private final ProtocolMessageHandler uponScribeMessage = (protocolMessage) -> {
+        ScribeMessage scribeMessage = (ScribeMessage) protocolMessage;
+
+        processMessage(scribeMessage);
+    };
+
     private final ProtocolTimerHandler uponRefreshSubscribes = (ProtocolTimer) -> {
-        logger.info(String.format("Refreshing subscribes of %s, topics: %s", myself, topicSubs));
-        for (String topic : topicSubs) {
-            requestRoute(new DeliverMessage(topic, true, myself));
+        logger.info(String.format("Refreshing subscribes of %s, topics: %s", myself, topics));
+        for (String topic : topics) {
+            requestRoute(new ScribeMessage(topic, true, myself));
         }
     };
 
-    private final ProtocolReplyHandler uponRouteDeliver = (request) -> {
-        logger.info(String.format("Received %s route request", myself));
-        RouteDeliver deliver = (RouteDeliver) request;
-        processMessage((DeliverMessage) deliver.getMessageDeliver());
-    };
-
-    private void requestRoute(DeliverMessage message) {
+    private void requestRoute(ScribeMessage message) {
         RouteRequest routeRequest = new RouteRequest(message, message.getTopic());
         routeRequest.setDestination(Chord.PROTOCOL_ID);
         try {
@@ -100,7 +190,7 @@ public class Scribe extends GenericProtocol {
         }
     }
 
-    private void processMessage(DeliverMessage message) {
+    private void processMessage(ScribeMessage message) {
 
         switch (message.getMessageType()) {
             case SUBSCRIBE:
@@ -117,32 +207,54 @@ public class Scribe extends GenericProtocol {
         }
     }
 
-    private void processPublication(DeliverMessage message) {
-        String topic = message.getTopic();
-        Set<HostSubscription> hostSubscriptionSet = topicTree.get(topic);
-        if (hostSubscriptionSet != null) {
-            Set<HostSubscription> hostSubscriptions = new HashSet<>(hostSubscriptionSet);
-            for (HostSubscription host : hostSubscriptions) {
-                if (!host.getHost().equals(myself) && !host.getHost().equals(message.getFrom()))
-                    sendMessageSideChannel(message, host.getHost());
+    private void processPublication(ScribeMessage scribeMessage) {
+        String topic = scribeMessage.getTopic();
+        String message = scribeMessage.getMessage();
+
+        if (subscribedTo(topic)) {
+            triggerNotification(new MessageDeliver(topic, message));
+        }
+
+        Set<HostSubscription> peers = topicTree.get(topic);
+
+        if (peers != null) {
+            for (HostSubscription hSub : peers) {
+                Host h = hSub.getHost();
+                if (!h.equals(myself) && !h.equals(scribeMessage.getHost())) {
+                    ScribeMessage sMessage = new ScribeMessage(topic, message);
+                    sendMessageSideChannel(sMessage, h);
+                }
+            }
+
+        } else {
+            addToTopicTree(topic, myself);
+
+            if (!scribeMessage.getHost().equals(myself)) {
+                ScribeMessage sMessage = new ScribeMessage(topic, message);
+                requestRoute(sMessage);
             }
         }
 
-        if (subscribedTo(topic)) {
-            triggerNotification(new MessageDeliver(topic, message.getMessage()));
+    }
+
+    private void processUnsubscribe(ScribeMessage message) {
+        String topic = message.getTopic();
+
+        removeFromTopicTree(topic, message.getHost());
+
+        Set<HostSubscription> peers = topicTree.get(topic);
+
+        if ((peers == null || peers.isEmpty()) && !message.getHost().equals(myself)) {
+            requestRoute(new ScribeMessage(topic, false, myself));
         }
     }
 
-    private void processUnsubscribe(DeliverMessage message) {
-        removeFromTopics(message.getTopic(), message.getHost());
-        requestRoute(message);
-    }
-
-    private void processSubscribe(DeliverMessage message) {
-        if (!topicTree.containsKey(message.getTopic())) {
-            requestRoute(message);
+    private void processSubscribe(ScribeMessage message) {
+        if (!topicTree.containsKey(message.getTopic()) && !message.getHost().equals(myself)) {
+            requestRoute(new ScribeMessage(message.getTopic(), true, myself));
         }
-        addToTopics(message.getTopic(), message.getFrom());
+
+        addToTopicTree(message.getTopic(), message.getHost());
     }
 
     /**
@@ -152,7 +264,7 @@ public class Scribe extends GenericProtocol {
      * @return <code>true</code> if subscribed
      */
     private boolean subscribedTo(String topic) {
-        return this.topicSubs.contains(topic);
+        return this.topics.contains(topic);
     }
 
     /**
@@ -162,7 +274,7 @@ public class Scribe extends GenericProtocol {
      * @param topic
      * @param host
      */
-    private void addToTopics(String topic, Host host) {
+    private void addToTopicTree(String topic, Host host) {
         Set<HostSubscription> hostSet;
 
         if (!topicTree.containsKey(topic)) {
@@ -183,7 +295,7 @@ public class Scribe extends GenericProtocol {
      * @param topic
      * @param host
      */
-    private void removeFromTopics(String topic, Host host) {
+    private void removeFromTopicTree(String topic, Host host) {
         HostSubscription subscription = new HostSubscription(host, System.currentTimeMillis());
         Set<HostSubscription> hostSet = topicTree.get(topic);
         hostSet.remove(subscription);
@@ -192,23 +304,5 @@ public class Scribe extends GenericProtocol {
             topicTree.remove(topic);
         }
     }
-
-    /**
-     * Handler dissemination request from the upper level
-     */
-    private ProtocolRequestHandler uponDisseminateRequest = (protocolRequest) -> {
-        DisseminateRequest request = (DisseminateRequest) protocolRequest;
-        DeliverMessage message = (DeliverMessage) request.getMessage();
-
-        if (message.getMessageType().equals(MessageType.SUBSCRIBE)) {
-            addToTopics(message.getTopic(), myself);
-            topicSubs.add(message.getTopic());
-        }
-        //  message.setHost(myself);
-
-        // processMessage(message);
-
-        requestRoute(message);
-    };
 
 }

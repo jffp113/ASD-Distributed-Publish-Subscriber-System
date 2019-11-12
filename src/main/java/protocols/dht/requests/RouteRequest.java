@@ -1,22 +1,22 @@
 package protocols.dht.requests;
 
-import babel.protocol.event.ProtocolMessage;
 import babel.requestreply.ProtocolRequest;
+import protocols.dissemination.message.ScribeMessage;
 
 public class RouteRequest extends ProtocolRequest {
 
     public static final short REQUEST_ID = 22254;
 
-    private final ProtocolMessage messageToRoute;
+    private final ScribeMessage messageToRoute;
     private final String topic;
 
-    public RouteRequest(ProtocolMessage messageToRoute,String topic) {
+    public RouteRequest(ScribeMessage messageToRoute, String topic) {
         super(REQUEST_ID);
         this.messageToRoute = messageToRoute;
         this.topic = topic;
     }
 
-    public ProtocolMessage getMessageToRoute() {
+    public ScribeMessage getMessageToRoute() {
         return messageToRoute;
     }
 

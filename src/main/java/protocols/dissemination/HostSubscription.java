@@ -2,8 +2,6 @@ package protocols.dissemination;
 
 import network.Host;
 
-import java.util.Objects;
-
 public class HostSubscription {
 
     private final Host host;
