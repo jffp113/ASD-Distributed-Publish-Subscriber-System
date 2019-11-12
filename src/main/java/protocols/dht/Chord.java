@@ -14,6 +14,7 @@ import protocols.dht.messages.*;
 import protocols.dht.requests.RouteRequest;
 import protocols.dht.timers.FixFingersTimer;
 import protocols.dht.timers.StabilizeTimer;
+import protocols.dissemination.Scribe;
 import protocols.dissemination.notifications.RouteDelivery;
 import protocols.dissemination.requests.RouteOk;
 import protocols.partialmembership.timers.DebugTimer;
@@ -169,7 +170,9 @@ public class Chord extends GenericProtocol implements INodeListener {
             Host host = closestPrecedingNode(calculateId(request.getTopic()));
 
             try {
-                sendReply(new RouteOk(request.getTopic(), host));
+                RouteOk routeOk = new RouteOk(request.getTopic(),host);
+                routeOk.setDestination(Scribe.PROTOCOL_ID);
+                sendReply(routeOk);
             } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
                 destinationProtocolDoesNotExist.printStackTrace();
             }

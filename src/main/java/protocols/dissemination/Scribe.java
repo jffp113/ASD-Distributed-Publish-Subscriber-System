@@ -1,12 +1,10 @@
 package protocols.dissemination;
 
 import babel.exceptions.DestinationProtocolDoesNotExist;
-import babel.handlers.ProtocolMessageHandler;
-import babel.handlers.ProtocolReplyHandler;
-import babel.handlers.ProtocolRequestHandler;
-import babel.handlers.ProtocolTimerHandler;
+import babel.handlers.*;
 import babel.notification.INotificationConsumer;
 import babel.protocol.GenericProtocol;
+import babel.protocol.INotificationProducer;
 import network.Host;
 import network.INetwork;
 import org.apache.logging.log4j.LogManager;
@@ -25,7 +23,7 @@ import utils.PropertiesUtils;
 
 import java.util.*;
 
-public class Scribe extends GenericProtocol {
+public class Scribe extends GenericProtocol implements INotificationConsumer {
     final static Logger logger = LogManager.getLogger(Scribe.class.getName());
 
     public static final short PROTOCOL_ID = 14153;
@@ -46,7 +44,7 @@ public class Scribe extends GenericProtocol {
 
         registerRequestHandler(DisseminatePubRequest.REQUEST_ID, uponDisseminatePubRequest);
         registerRequestHandler(DisseminateSubRequest.REQUEST_ID, uponDisseminateSubRequest);
-        subscribeNotification(RouteDelivery.NOTIFICATION_NAME, uponRouteDelivery);
+        registerNotificationHandler(Chord.PROTOCOL_ID,RouteDelivery.NOTIFICATION_ID, uponRouteDelivery);
         registerReplyHandler(RouteOk.REPLY_ID, uponRouteOk);
 
         registerMessageHandler(ScribeMessage.MSG_CODE, uponScribeMessage, ScribeMessage.serializer);
@@ -149,7 +147,7 @@ public class Scribe extends GenericProtocol {
         addToTopicTree(routeOk.getTopic(), routeOk.getForwardedTo());
     };
 
-    private final INotificationConsumer uponRouteDelivery = (notification) -> {
+    private final ProtocolNotificationHandler uponRouteDelivery = (notification) -> {
         logger.info(String.format("Received %s route request", myself));
         RouteDelivery deliver = (RouteDelivery) notification;
         processMessage((ScribeMessage) deliver.getMessage());
