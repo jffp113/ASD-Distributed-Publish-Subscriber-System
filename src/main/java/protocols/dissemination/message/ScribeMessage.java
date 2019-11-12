@@ -6,6 +6,7 @@ import network.Host;
 import network.ISerializer;
 import protocols.dissemination.MessageType;
 
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 public class ScribeMessage extends ProtocolMessage {
@@ -26,6 +27,11 @@ public class ScribeMessage extends ProtocolMessage {
         this.topic = topic;
         this.message = message;
         this.messageType = MessageType.PUBLICATION;
+        try {
+            host = new Host(InetAddress.getByName("0.0.0.0"),9999);
+        } catch (UnknownHostException e) {
+            e.printStackTrace();
+        }
     }
 
     public ScribeMessage(String topic, boolean subscribe, Host host) {

@@ -189,6 +189,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
     }
 
     private void processMessage(ScribeMessage message) {
+        logger.info(String.format("[%s] Processing %s" ,myself,message));
 
         switch (message.getMessageType()) {
             case SUBSCRIBE:
@@ -218,7 +219,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         if (peers != null) {
             for (HostSubscription hSub : peers) {
                 Host h = hSub.getHost();
-                if (!h.equals(myself) && !h.equals(scribeMessage.getHost())) {
+                if (!h.equals(myself) && !h.equals(scribeMessage.getFrom())) {
                     ScribeMessage sMessage = new ScribeMessage(topic, message);
                     sendMessageSideChannel(sMessage, h);
                 }

@@ -340,12 +340,18 @@ public class Chord extends GenericProtocol implements INodeListener {
 
         for (int i = m - 1; i >= 0; i--) {
             finger = fingers.get(i);
-            if (isIdBetween(finger.getHostId(), calculateId(defaultHost.toString()), nodeId, true)) {
+            if (isIdBetween(nodeId, finger.getStart(), finger.getHostId(), true)) {
                 return finger.getHost();
             }
         }
 
-        return defaultHost;
+        int x = Math.abs(nodeId - fingers.get(0).getHostId());
+        int y = Math.abs(nodeId - fingers.get(fingers.size()-1).getHostId());
+
+        if(x > y)
+            return fingers.get(fingers.size()-1).getHost();
+
+        return fingers.get(0).getHost();
     }
 
     private int generateId() {
