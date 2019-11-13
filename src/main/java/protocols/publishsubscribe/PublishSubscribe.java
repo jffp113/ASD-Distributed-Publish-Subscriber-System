@@ -5,11 +5,18 @@ import babel.handlers.ProtocolRequestHandler;
 import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
+import babel.protocol.event.ProtocolMessage;
+import babel.requestreply.ProtocolRequest;
 import network.INetwork;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
 import protocols.dissemination.Scribe;
 import protocols.dissemination.requests.DisseminatePubRequest;
 import protocols.dissemination.requests.DisseminateSubRequest;
+import protocols.floadbroadcastrecovery.GossipBCast;
+import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
 import protocols.publishsubscribe.requests.SubscribeRequest;
@@ -19,13 +26,12 @@ import java.util.Map;
 import java.util.Properties;
 
 public class PublishSubscribe extends GenericProtocol implements INotificationConsumer {
+    final static Logger logger = LogManager.getLogger(PublishSubscribe.class.getName());
 
-    public final static short PROTOCOL_ID = 1000;
-    public final static String PROTOCOL_NAME = "Publish/Subscriber";
-
+    private static final short PROTOCOL_ID = 1000;
     private static final int INITIAL_CAPACITY = 100;
-    private static final String TOPICS_FILE_NAME = "./pers/Topics";
-    private static final String LISTEN_BASE_PORT = "listen_base_port";
+    private static final String PROTOCOL_NAME = "Publish/Subscriber";
+
     private Map<String, Boolean> topics;
 
     public PublishSubscribe(INetwork net) throws Exception {
@@ -63,14 +69,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         }
 
         DisseminateSubRequest disseminateSubRequest = new DisseminateSubRequest(topic, isSubscribe);
-        disseminateSubRequest.setDestination(Scribe.PROTOCOL_ID);
-
-        try {
-            sendRequest(disseminateSubRequest);
-        } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
-            // Ignored - should not happen.
-        }
-
+        sendRequestDecider(disseminateSubRequest);
     };
 
     /**
@@ -81,13 +80,8 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
         DisseminatePubRequest disseminatePubRequest =
                 new DisseminatePubRequest(pRequest.getTopic(), pRequest.getMessage());
-        disseminatePubRequest.setDestination(Scribe.PROTOCOL_ID);
 
-        try {
-            this.sendRequest(disseminatePubRequest);
-        } catch (Exception e) {
-            // ignored
-        }
+        sendRequestDecider(disseminatePubRequest);
     };
 
     /**
@@ -103,4 +97,29 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
             triggerNotification(new PBDeliver(deliver.getMessage(), topic));
         }
     }
+
+    public void sendRequestDecider(ProtocolRequest request){
+        if(isFrequentTopic()){
+            logger.info(String.format("%s - Sending message by Broadcast",myself));
+            request.setDestination(GossipBCast.PROTOCOL_ID);
+        }else{
+            logger.info(String.format("%s - Sending message by Scribe",myself));
+            request.setDestination(Scribe.PROTOCOL_ID);
+        }
+
+        sendRequestToProtocol(request);
+    }
+
+    private boolean isFrequentTopic() {
+        return false;
+    }
+
+    private void sendRequestToProtocol(ProtocolRequest request){
+        try {
+            this.sendRequest(request);
+        } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
+            logger.error(destinationProtocolDoesNotExist);
+        }
+    }
+
 }
