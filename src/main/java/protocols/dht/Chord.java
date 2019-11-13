@@ -218,13 +218,12 @@ public class Chord extends GenericProtocol implements INodeListener {
     private final ProtocolMessageHandler uponFindPredecessorResponseMessage = (protocolMessage) -> {
         FindPredecessorResponseMessage message = (FindPredecessorResponseMessage) protocolMessage;
         Host receivedPredecessor = message.getPredecessor();
-        if (receivedPredecessor != null) {
-            int tempId = calculateId(receivedPredecessor.toString());
-            int successorId = calculateId(successor.toString());
 
-            if (successorId == myId || isIdBetween(tempId, myId, successorId, false)) {
-                changeSuccessor(receivedPredecessor);
-            }
+        int tempId = calculateId(receivedPredecessor.toString());
+        int successorId = calculateId(successor.toString());
+
+        if (successorId == myId || isIdBetween(tempId, myId, successorId, false)) {
+            changeSuccessor(receivedPredecessor);
         }
 
         if (!successor.equals(myself)) {

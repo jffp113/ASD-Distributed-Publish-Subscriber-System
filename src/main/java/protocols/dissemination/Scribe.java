@@ -64,12 +64,12 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         this.topicTree = new HashMap<>();
         this.topics = new HashSet<>();
 
-        setupPeriodicTimer(new RecycleSubscribesTimer(),
-                PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_INIT),
-                PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_PERIOD));
-        setupPeriodicTimer(new RefreshSubscribesTimer(),
-                PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_INIT),
-                PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_PERIOD));
+//        setupPeriodicTimer(new RecycleSubscribesTimer(),
+//                PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_INIT),
+//                PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_PERIOD));
+//        setupPeriodicTimer(new RefreshSubscribesTimer(),
+//                PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_INIT),
+//                PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_PERIOD));
 
     }
 
