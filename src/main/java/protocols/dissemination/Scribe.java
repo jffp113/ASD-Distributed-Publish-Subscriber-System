@@ -4,7 +4,6 @@ import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.handlers.*;
 import babel.notification.INotificationConsumer;
 import babel.protocol.GenericProtocol;
-import babel.protocol.INotificationProducer;
 import network.Host;
 import network.INetwork;
 import org.apache.logging.log4j.LogManager;
@@ -44,7 +43,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
 
         registerRequestHandler(DisseminatePubRequest.REQUEST_ID, uponDisseminatePubRequest);
         registerRequestHandler(DisseminateSubRequest.REQUEST_ID, uponDisseminateSubRequest);
-        registerNotificationHandler(Chord.PROTOCOL_ID,RouteDelivery.NOTIFICATION_ID, uponRouteDelivery);
+        registerNotificationHandler(Chord.PROTOCOL_ID, RouteDelivery.NOTIFICATION_ID, uponRouteDelivery);
         registerReplyHandler(RouteOk.REPLY_ID, uponRouteOk);
 
         registerMessageHandler(ScribeMessage.MSG_CODE, uponScribeMessage, ScribeMessage.serializer);
@@ -53,7 +52,6 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
 
         registerTimerHandler(RecycleSubscribesTimer.TimerCode, uponRecycleSubscribes);
         registerTimerHandler(RefreshSubscribesTimer.TimerCode, uponRefreshSubscribes);
-
     }
 
     @Override
@@ -64,12 +62,12 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         this.topicTree = new HashMap<>();
         this.topics = new HashSet<>();
 
-//        setupPeriodicTimer(new RecycleSubscribesTimer(),
-//                PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_INIT),
-//                PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_PERIOD));
-//        setupPeriodicTimer(new RefreshSubscribesTimer(),
-//                PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_INIT),
-//                PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_PERIOD));
+        /*setupPeriodicTimer(new RecycleSubscribesTimer(),
+                PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_INIT),
+                PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_PERIOD));
+        setupPeriodicTimer(new RefreshSubscribesTimer(),
+                PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_INIT),
+                PropertiesUtils.getPropertyAsInt(properties, REFRESH_SUBSCRIBES_PERIOD));*/
 
     }
 
@@ -82,12 +80,10 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         boolean subscribe = request.isSubscribe();
 
         if (subscribe) {
-
             topics.add(topic);
 
             if (!topicTree.containsKey(topic)) {
                 ScribeMessage message = new ScribeMessage(topic, true, myself);
-
                 requestRoute(message);
             }
 
@@ -97,15 +93,11 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
             topics.remove(topic);
             removeFromTopicTree(topic, myself);
 
-            Set<HostSubscription> peers = topicTree.get(topic);
-
             ScribeMessage message = new ScribeMessage(topic, false, myself);
+
+            Set<HostSubscription> peers = topicTree.get(topic);
             if (peers == null || peers.isEmpty()) {
                 requestRoute(message);
-            } else {
-                for (HostSubscription h : peers) {
-                    sendMessageSideChannel(message, h.getHost());
-                }
             }
         }
     };
@@ -125,7 +117,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
             for (HostSubscription hSub : peers) {
                 Host h = hSub.getHost();
                 if (!h.equals(myself)) {
-                    ScribeMessage sMessage = new ScribeMessage(topic, message);
+                    ScribeMessage sMessage = new ScribeMessage(topic, message, myself);
                     sendMessageSideChannel(sMessage, h);
                 }
             }
@@ -133,7 +125,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         } else {
             addToTopicTree(topic, myself);
 
-            ScribeMessage sMessage = new ScribeMessage(topic, message);
+            ScribeMessage sMessage = new ScribeMessage(topic, message, myself);
             requestRoute(sMessage);
         }
 
@@ -188,7 +180,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
     }
 
     private void processMessage(ScribeMessage message) {
-        logger.info(String.format("[%s] Processing %s" ,myself,message));
+        logger.info(String.format("[%s] Processing %s", myself, message));
 
         switch (message.getMessageType()) {
             case SUBSCRIBE:
@@ -214,21 +206,21 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         }
 
         Set<HostSubscription> peers = topicTree.get(topic);
-
+        addToTopicTree(topic, scribeMessage.getHost());
         if (peers != null) {
             for (HostSubscription hSub : peers) {
                 Host h = hSub.getHost();
-                if (!h.equals(myself) && !h.equals(scribeMessage.getFrom())) {
-                    ScribeMessage sMessage = new ScribeMessage(topic, message);
+                if (!h.equals(myself) && !h.equals(scribeMessage.getHost())) {
+                    ScribeMessage sMessage = new ScribeMessage(topic, message, myself);
                     sendMessageSideChannel(sMessage, h);
                 }
             }
 
+
         } else {
             addToTopicTree(topic, myself);
-
             if (!scribeMessage.getHost().equals(myself)) {
-                ScribeMessage sMessage = new ScribeMessage(topic, message);
+                ScribeMessage sMessage = new ScribeMessage(topic, message, myself);
                 requestRoute(sMessage);
             }
         }
@@ -296,10 +288,12 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
     private void removeFromTopicTree(String topic, Host host) {
         HostSubscription subscription = new HostSubscription(host, System.currentTimeMillis());
         Set<HostSubscription> hostSet = topicTree.get(topic);
-        hostSet.remove(subscription);
+        if (hostSet != null) {
+            hostSet.remove(subscription);
 
-        if (hostSet.isEmpty()) {
-            topicTree.remove(topic);
+            if (hostSet.isEmpty()) {
+                topicTree.remove(topic);
+            }
         }
     }
 

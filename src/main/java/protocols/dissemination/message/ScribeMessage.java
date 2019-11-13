@@ -22,16 +22,13 @@ public class ScribeMessage extends ProtocolMessage {
         super(MSG_CODE);
     }
 
-    public ScribeMessage(String topic, String message) {
+    public ScribeMessage(String topic, String message, Host host) {
         super(MSG_CODE);
         this.topic = topic;
         this.message = message;
+        this.host=host;
         this.messageType = MessageType.PUBLICATION;
-        try {
-            host = new Host(InetAddress.getByName("0.0.0.0"),9999);
-        } catch (UnknownHostException e) {
-            e.printStackTrace();
-        }
+
     }
 
     public ScribeMessage(String topic, boolean subscribe, Host host) {
@@ -60,10 +57,11 @@ public class ScribeMessage extends ProtocolMessage {
             out.writeBytes(m.topic.getBytes());
             out.writeInt(m.message.length());
             out.writeBytes(m.message.getBytes());
+            m.host.serialize(out);
         }
 
         @Override
-        public ScribeMessage deserialize(ByteBuf in) {
+        public ScribeMessage deserialize(ByteBuf in) throws UnknownHostException {
             byte[] topicBytes = new byte[in.readInt()];
             in.readBytes(topicBytes);
             String topic = new String(topicBytes);
@@ -72,12 +70,12 @@ public class ScribeMessage extends ProtocolMessage {
             in.readBytes(messageBytes);
             String message = new String(messageBytes);
 
-            return new ScribeMessage(topic, message);
+            return new ScribeMessage(topic, message,Host.deserialize(in));
         }
 
         @Override
         public int serializedSize(ScribeMessage m) {
-            return 2 * Integer.BYTES + m.topic.length() + m.message.length();
+            return 2 * Integer.BYTES + m.topic.length() + m.message.length()+m.host.serializedSize();
         }
     };
 
