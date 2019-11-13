@@ -167,7 +167,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             triggerNotification(new RouteDelivery(request.getMessageToRoute()));
             logger.info(String.format("[%d]%s RouteOk Message: %s", myId, myself, request.getMessageToRoute()));
         } else {
-            Host host = closestPrecedingNode(calculateId(request.getTopic()));
+            Host host = closestPrecedingNode2(calculateId(request.getTopic()));
 
             try {
                 RouteOk routeOk = new RouteOk(request.getTopic(),host);
@@ -330,11 +330,11 @@ public class Chord extends GenericProtocol implements INodeListener {
         return fingerEntryList.get(0);
     }
 
-    private Host closestPrecedingNode(int nodeId) {
-        return closestPrecedingNode(nodeId, fingers, myself);
+    private Host closestPrecedingNode2(int nodeId) {
+        return closestPrecedingNode2(nodeId, fingers, myself);
     }
 
-    private Host closestPrecedingNode(int nodeId, List<FingerEntry> fingers, Host defaultHost) {
+    private Host closestPrecedingNode2(int nodeId, List<FingerEntry> fingers, Host defaultHost) {
         FingerEntry finger;
 
         for (int i = m - 1; i >= 0; i--) {
@@ -351,6 +351,23 @@ public class Chord extends GenericProtocol implements INodeListener {
             return fingers.get(fingers.size()-1).getHost();
 
         return fingers.get(0).getHost();
+    }
+
+    private Host closestPrecedingNode(int nodeId) {
+        return closestPrecedingNode(nodeId, fingers, myself);
+    }
+
+    private Host closestPrecedingNode(int nodeId, List<FingerEntry> fingers, Host defaultHost) {
+        FingerEntry finger;
+
+        for (int i = m - 1; i >= 0; i--) {
+            finger = fingers.get(i);
+            if (isIdBetween(finger.getHostId(), calculateId(defaultHost.toString()), nodeId, false)) {
+                return finger.getHost();
+            }
+        }
+
+        return defaultHost;
     }
 
     private int generateId() {
