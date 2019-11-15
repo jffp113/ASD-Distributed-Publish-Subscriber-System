@@ -56,7 +56,7 @@ public class FindSuccessorResponseMessage extends ProtocolMessage {
 
         @Override
         public int serializedSize(FindSuccessorResponseMessage m) {
-            return m.successor.serializedSize() + Integer.BYTES + m.fingerEntryList.size()*FingerEntry.serializedSize();
+            return m.successor.serializedSize() + m.fingerEntryList.size()*FingerEntry.serializedSize() + Integer.BYTES;
         }
     };
 }

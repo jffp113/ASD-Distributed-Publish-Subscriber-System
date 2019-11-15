@@ -49,17 +49,17 @@ public class Chord extends GenericProtocol {
             // Timers
             registerTimerHandler(DebugTimer.TimerCode, uponDebugTimer);
 
-            registerTimerHandler(protocols.dht.timers.StabilizeTimer.TimerCode, uponStabilizeTimer);
-            registerTimerHandler(protocols.dht.timers.FixFingersTimer.TimerCode, uponFixFingersTimer);
+            registerTimerHandler(StabilizeTimer.TimerCode, uponStabilizeTimer);
+            registerTimerHandler(FixFingersTimer.TimerCode, uponFixFingersTimer);
 
-            registerMessageHandler(protocols.dht.messages.FindFingerSuccessorResponseMessage.MSG_CODE,
-                    uponFindFingerSuccessorResponseMessage, protocols.dht.messages.FindFingerSuccessorResponseMessage.serializer);
-            registerMessageHandler(protocols.dht.messages.FindFingerSuccessorRequestMessage.MSG_CODE,
-                    uponFindFingerSuccessorRequestMessage, protocols.dht.messages.FindFingerSuccessorRequestMessage.serializer);
+            registerMessageHandler(FindFingerSuccessorResponseMessage.MSG_CODE,
+                    uponFindFingerSuccessorResponseMessage,FindFingerSuccessorResponseMessage.serializer);
+            registerMessageHandler(FindFingerSuccessorRequestMessage.MSG_CODE,
+                    uponFindFingerSuccessorRequestMessage, FindFingerSuccessorRequestMessage.serializer);
             registerMessageHandler(FindPredecessorResponseMessage.MSG_CODE,
                     uponFindPredecessorResponseMessage, FindPredecessorResponseMessage.serializer);
-            registerMessageHandler(protocols.dht.messages.NotifyPredecessorMessage.MSG_CODE, uponNotifyPredecessorMessage,
-                    protocols.dht.messages.NotifyPredecessorMessage.serializer);
+            registerMessageHandler(NotifyPredecessorMessage.MSG_CODE, uponNotifyPredecessorMessage,
+                    NotifyPredecessorMessage.serializer);
 
             registerMessageHandler(FindPredecessorRequestMessage.MSG_CODE,
                     uponFindPredecessorRequestMessage, FindPredecessorRequestMessage.serializer);
@@ -70,16 +70,8 @@ public class Chord extends GenericProtocol {
     }
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
-        StringBuilder sb = new StringBuilder();
-        sb.append("--------------------\n");
-        sb.append(myself + "->" + myID.toString() + "\n");
-        sb.append("Predecessor: " + this.fingerTable.getPredecessorHost() + "\n");
-        sb.append("Successor: " + this.fingerTable.getSuccessor().getHostId() + "\n");
-//        for (FingerEntry f : ) {
-//            sb.append(f + "\n");
-//        }
 
-        logger.info(sb.toString());
+        logger.info(fingerTable.toString());
     };
 
     private void setupTimers() {
@@ -106,12 +98,14 @@ public class Chord extends GenericProtocol {
         ID successorId = fingerTable.getSuccessor().getHostId();
 
         if (nodeId.isInInterval(myID,successorId)) {
-            sendMessageSideChannel(new FindFingerSuccessorResponseMessage(fingerTable.getClosestPrecedingNode(nodeId).getHost(),
-                            message.getNext()), message.getRequesterNode());
+            FingerEntry entry = fingerTable.getClosestPrecedingNode(nodeId);
+            if(entry != null)
+                sendMessageSideChannel(new FindFingerSuccessorResponseMessage(entry.getHost(),
+                                message.getNext()), message.getRequesterNode());
         } else {
-            Host closestPrecedingNode = fingerTable.getClosestPrecedingNode(nodeId).getHost();
-            if (!closestPrecedingNode.equals(myself)) {
-                sendMessage(message, closestPrecedingNode);
+            FingerEntry entry = fingerTable.getClosestPrecedingNode(nodeId);
+            if (entry != null && !entry.equals(myself)) {
+                sendMessage(message, entry.getHost());
             }
         }
     };

@@ -49,7 +49,7 @@ public class FingerEntry {
     }
 
     public static int serializedSize() {
-        return 2 * ID.serializeSize() + 6;
+        return ID.serializeSize() + 6;
     }
 
     public FingerEntry clone() {
@@ -58,6 +58,6 @@ public class FingerEntry {
 
     @Override
     public String toString() {
-        return String.format("Start: %d hostId: %d host %s", startId,hostId,host);
+        return String.format("Start: %s hostId: %s host %s", startId,hostId,host);
     }
 }

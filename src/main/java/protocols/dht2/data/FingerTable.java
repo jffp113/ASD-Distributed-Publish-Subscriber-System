@@ -106,7 +106,7 @@ public class FingerTable implements INodeListener {
 
     private void fillMyTable(List<FingerEntry> fingerEntryList) {
 
-        for(int i = 1 ; i < ID.maxIDSize() - 1;i++){
+        for(int i = 1 ; i < MAX_BITS_OF_ID - 1;i++){
             FingerEntry f = this.getFingerEntryAt(i);
             FingerEntry listSuccessor = findSuccessorInList(f.getStartId(), fingerEntryList);
             this.updateFingerEntryAt(i,listSuccessor.getHost());
@@ -223,23 +223,6 @@ public class FingerTable implements INodeListener {
 
         tcpConnectionReferences.remove(host.toString());
         removeConnection(host);
-
-        /**
-         *
-             if (successor.equals(host)) {
-             changeSuccessor(myself);
-             }
-
-             for (FingerEntry finger : fingers) {
-             Host fingerHost = finger.getHost();
-             if (fingerHost.equals(host)) {
-             Host newHost = getNewHostFromTable(host);
-             updateFingerNetworkPeer(fingerHost, newHost);
-             finger.setHost(newHost);
-             finger.setHostId(calculateId(newHost.toString()));
-             }
-             }
-         */
     }
 
     @Override
@@ -258,5 +241,20 @@ public class FingerTable implements INodeListener {
 
     protected final void sendMessageSideChannel(ProtocolMessage msg, Host destination) {
         this.iNetwork.sendMessage(msg.getId(), msg, destination, true);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("--------------------\n");
+        sb.append(iNetwork.myHost() + "->" + localID + "\n");
+        sb.append("Predecessor: " + getPredecessorHost() + "\n");
+        sb.append("Successor: " + getSuccessor().getHostId() + "\n");
+
+        for(int i = 0 ; i < fingers.length; i++){
+            sb.append(String.format("Start:%s [%s]%s\n",fingers[i].getStartId(),fingers[i].getHostId(),fingers[i].getHost()));
+        }
+
+        return sb.toString();
     }
 }
