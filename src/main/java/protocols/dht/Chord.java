@@ -129,7 +129,7 @@ public class Chord extends GenericProtocol implements INodeListener {
     }
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
-       /* StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
         sb.append("--------------------\n");
         sb.append(myself + "->" + myId + "\n");
         sb.append("Predecessor: " + predecessor + " " + (predecessor == null ? -1 : calculateId(predecessor.toString()) + "\n"));
@@ -138,7 +138,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             sb.append(f + "\n");
         }
 
-        logger.info(sb.toString());*/
+        logger.info(sb.toString());
     };
 
     private void join(Host node) {
@@ -273,7 +273,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         if ( isIdBetween(nodeId,myId, successorId, true)) {
             sendMessageSideChannel(new FindFingerSuccessorResponseMessage(successor, message.getNext()), message.getRequesterNode());
         } else {
-            Host closestPrecedingNode = closestPrecedingNode2(nodeId);
+            Host closestPrecedingNode = closestPrecedingNode(nodeId);
             if (!closestPrecedingNode.equals(myself)) {
                 sendMessage(message, closestPrecedingNode);
             }
@@ -298,7 +298,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         this.predecessor = predecessor;
 
         // Verify integrity of the finger table
-        for (FingerEntry finger : fingers) {
+        /*for (FingerEntry finger : fingers) {
             if (finger.getHost().equals(myself)) {
                 int predecessorID = calculateId(predecessor.toString());
                 if (!isIdBetween(finger.getStart(), predecessorID, myId, true)) {
@@ -306,7 +306,7 @@ public class Chord extends GenericProtocol implements INodeListener {
                     finger.setHostId(fingers.get(0).getHostId());
                 }
             }
-        }
+        }*/
     }
 
     private void fillMyTable(List<FingerEntry> fingerEntryList) {
@@ -342,6 +342,9 @@ public class Chord extends GenericProtocol implements INodeListener {
         for (int i = 1; i < m; i++) {
             finger = fingers.get(i);
             if (isIdBetween(nodeId, fingers.get(i - 1).getStart(), finger.getStart(), true)) {
+                if(isIdBetween(nodeId, fingers.get(i-1).getStart(), fingers.get(i-1).getHostId(), true)) {
+                    return fingers.get(i-1).getHost();
+                }
                 return finger.getHost();
             }
         }
@@ -403,7 +406,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             }
         }
 
-        return includeEnd ? start == end || id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
+        return includeEnd ? id==end || id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
     }
 
     private void changeSuccessor(Host newSuccessor) {
