@@ -1,12 +1,20 @@
+import babel.Babel;
+import babel.exceptions.InvalidParameterException;
+import network.INetwork;
 import org.junit.Assert;
 import org.junit.Test;
+import protocols.dht2.Chord;
+import utils.PropertiesUtils;
 
+import java.io.IOException;
 import java.util.HashMap;
+import java.util.Properties;
 import java.util.Set;
 
 
 public class EmptyTest {
     static int k = 32;
+    private static final String NETWORK_CONFIG_PROPERTIES = "src/network_config.properties";
 
     private boolean isIdBetween(int id, int start, int end, boolean includeEnd) {
         int minLimit = start;
@@ -39,5 +47,17 @@ public class EmptyTest {
         Assert.assertFalse(isIdBetween(4,7,3,false));
         Assert.assertFalse(isIdBetween(4,4,4,false));
         Assert.assertTrue(isIdBetween(4,4,4,true));
+    }
+
+    public static void main(String[] args) throws Exception {
+        Babel babel = Babel.getInstance();
+        Properties properties = babel.loadConfig(NETWORK_CONFIG_PROPERTIES, args);
+        PropertiesUtils.loadProperties(args);
+        INetwork net = babel.getNetworkInstance();
+
+        Chord chord = new Chord(net);
+        chord.init(properties);
+        babel.registerProtocol(chord);
+        babel.start();
     }
 }

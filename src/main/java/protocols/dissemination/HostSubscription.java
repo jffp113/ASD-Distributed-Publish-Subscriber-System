@@ -31,4 +31,9 @@ public class HostSubscription {
     public int hashCode() {
         return this.host.hashCode();
     }
+
+    @Override
+    public String toString() {
+        return host.toString();
+    }
 }

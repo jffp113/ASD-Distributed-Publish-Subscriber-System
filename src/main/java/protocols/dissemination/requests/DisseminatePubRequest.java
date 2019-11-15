@@ -5,7 +5,7 @@ import protocols.floadbroadcastrecovery.requests.BCastRequest;
 public class DisseminatePubRequest extends BCastRequest {
 
     public DisseminatePubRequest(String topic, String message) {
-        super(topic,message);
+        super(message,topic);
 
     }
 

@@ -12,6 +12,7 @@ import protocols.publishsubscribe.PublishSubscribe;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
 import protocols.publishsubscribe.requests.SubscribeRequest;
+import utils.PropertiesUtils;
 
 import java.util.Properties;
 
@@ -26,6 +27,7 @@ public class Client implements INotificationConsumer {
     public Client(String[] args) throws Exception {
         Babel babel = Babel.getInstance();
         properties = babel.loadConfig(NETWORK_CONFIG_PROPERTIES, args);
+        PropertiesUtils.loadProperties(args);
         INetwork net = babel.getNetworkInstance();
 
       /*  HyParView hyParView = new HyParView(net);

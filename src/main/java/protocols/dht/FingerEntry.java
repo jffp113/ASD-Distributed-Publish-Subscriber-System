@@ -6,6 +6,7 @@ import network.Host;
 import java.net.UnknownHostException;
 
 public class FingerEntry {
+
     private int start;
     private int hostId;
     private Host host;

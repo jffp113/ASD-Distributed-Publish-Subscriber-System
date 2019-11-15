@@ -122,6 +122,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         Set<HostSubscription> peers = topicTree.get(topic);
 
         if (peers != null) {
+            logger.info("Sending message to: " + peers);
             for (HostSubscription hSub : peers) {
                 Host h = hSub.getHost();
                 if (!h.equals(myself)) {
@@ -131,6 +132,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
             }
 
         } else {
+            logger.info("Does't know topic");
             addToTopicTree(topic, myself);
 
             ScribeMessage sMessage = new ScribeMessage(topic, message);
@@ -279,7 +281,9 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
             topicTree.put(topic, new HashSet<>());
         }
 
+
         hostSet = topicTree.get(topic);
+        logger.info("Tree of :" + topic + hostSet.toString());
         HostSubscription subscription = new HostSubscription(host, System.currentTimeMillis());
         hostSet.remove(subscription);
         hostSet.add(subscription);

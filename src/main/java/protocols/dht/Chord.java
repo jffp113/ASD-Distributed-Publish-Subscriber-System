@@ -24,7 +24,6 @@ import java.net.InetAddress;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 
@@ -50,7 +49,6 @@ public class Chord extends GenericProtocol implements INodeListener {
     private Host successor;
     private List<FingerEntry> fingers;
     private int next; // Used to update finger
-    private HashMap<String, Integer> referenceCounter;
 
     public Chord(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
@@ -124,7 +122,6 @@ public class Chord extends GenericProtocol implements INodeListener {
         myId = generateId();
         fingers = new ArrayList<>(m);
         next = 0;
-        referenceCounter = new HashMap<>();
         createRing();
     }
 
