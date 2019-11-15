@@ -169,6 +169,7 @@ public class Chord extends GenericProtocol implements INodeListener {
 
         changeSuccessor(myself);
     }
+
     private final ProtocolMessageHandler uponFindSuccessorRequestMessage = (protocolMessage) -> {
         FindSuccessorRequestMessage message = (FindSuccessorRequestMessage) protocolMessage;
         int nodeId = message.getNodeId();
@@ -179,6 +180,8 @@ public class Chord extends GenericProtocol implements INodeListener {
             Host closestPrecedingNode = closestPrecedingNode(nodeId);
             if (!closestPrecedingNode.equals(myself)) {
                 sendMessage(message, closestPrecedingNode);
+            } else {
+                sendMessageSideChannel(new FindSuccessorResponseMessage(myself, fingers), message.getRequesterNode());
             }
         }
     };
@@ -189,7 +192,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         int receivedPredecessorId = calculateId(receivedPredecessor.toString());
         int successorId = fingers.get(0).getHostId();
 
-        if (successorId == myId || isIdBetween(receivedPredecessorId, myId, successorId, true)) {
+        if (successorId == myId || isIdBetween(receivedPredecessorId, myId, successorId)) {
             changeSuccessor(receivedPredecessor);
         }
 
@@ -241,11 +244,10 @@ public class Chord extends GenericProtocol implements INodeListener {
     private final ProtocolMessageHandler uponFindFingerSuccessorRequestMessage = (protocolMessage) -> {
         FindFingerSuccessorRequestMessage message = (FindFingerSuccessorRequestMessage) protocolMessage;
         int nodeId = message.getNodeId();
-        int successorId = calculateId(this.successor.toString());
-        if (isIdBetween(nodeId, myId, successorId, true)) {
-            sendMessageSideChannel(new FindFingerSuccessorResponseMessage(successor, message.getNext()), message.getRequesterNode());
+        if (predecessor != null && isIdBetween(nodeId, calculateId(predecessor.toString()), myId)) {
+            sendMessageSideChannel(new FindFingerSuccessorResponseMessage(myself, message.getNext()), message.getRequesterNode());
         } else {
-            Host closestPrecedingNode = closestPrecedingFingerNode(nodeId);
+            Host closestPrecedingNode = closestPrecedingNode(nodeId);
             if (!closestPrecedingNode.equals(myself)) {
                 sendMessage(message, closestPrecedingNode);
             }
@@ -311,28 +313,12 @@ public class Chord extends GenericProtocol implements INodeListener {
 
         for (int i = 1; i < m; i++) {
             finger = fingers.get(i);
-            if (isIdBetween(nodeId, fingers.get(i - 1).getStart(), finger.getStart(), true)) {
-                if (isIdBetween(nodeId, fingers.get(i - 1).getStart(), fingers.get(i - 1).getHostId(), true)) {
-                    return fingers.get(i - 1).getHost();
-                }
-                return finger.getHost();
+            if (isIdBetween(nodeId, fingers.get(i - 1).getStart(), finger.getStart())) {
+                return fingers.get(i - 1).getHost();
             }
         }
 
         return fingers.get(0).getHost();
-    }
-
-    private Host closestPrecedingFingerNode(int nodeId) {
-        FingerEntry finger;
-
-        for (int i = m - 1; i >= 0; i--) {
-            finger = fingers.get(i);
-            if (isIdBetween(finger.getHostId(), myId, nodeId, false)) {
-                return finger.getHost();
-            }
-        }
-
-        return myself;
     }
 
     private int calculateId(String seed) {
@@ -349,7 +335,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         return (int) ((myId + Math.pow(2, fingerIndex)) % k);
     }
 
-    private boolean isIdBetween(int id, int start, int end, boolean includeEnd) {
+    private boolean isIdBetween(int id, int start, int end) {
         int minLimit = start;
         int maxLimit = end;
 
@@ -362,7 +348,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             }
         }
 
-        return includeEnd ? id == end || id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
+        return id == end || id > minLimit && id <= maxLimit;
     }
 
     private void changeSuccessor(Host newSuccessor) {
@@ -378,6 +364,7 @@ public class Chord extends GenericProtocol implements INodeListener {
 
         successor = newSuccessor;
         addNetworkPeer(successor);
+        verify();
     }
 
     @Override
@@ -462,6 +449,16 @@ public class Chord extends GenericProtocol implements INodeListener {
     };
 
     private boolean isSuccessor(int candidate) {
-        return predecessor == null || isIdBetween(candidate, calculateId(predecessor.toString()), myId, true);
+        return predecessor == null || isIdBetween(candidate, calculateId(predecessor.toString()), myId);
+    }
+
+    private void verify() {
+        int successorId = calculateId(successor.toString());
+        for (FingerEntry e : fingers) {
+            if (isIdBetween(successorId, e.getStart(), e.getHostId())) {
+                e.setHostId(successorId);
+                e.setHost(successor);
+            }
+        }
     }
 }
