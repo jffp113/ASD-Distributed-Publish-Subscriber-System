@@ -121,9 +121,9 @@ public class Chord extends GenericProtocol implements INodeListener {
     private final ProtocolRequestHandler uponRouteRequest = (protocolRequest) -> {
         RouteRequest request = (RouteRequest) protocolRequest;
         logger.info(String.format("Process [%d]%s Routing %s with Id=%d", myId, myself, request.getMessageToRoute(), calculateId(request.getTopic())));
-
+        System.err.println(request.getTopic());
         int topicId = calculateId(request.getTopic());
-        if (isSuccessor(topicId)) {
+        if (isIdBetween(topicId, calculateId(predecessor.toString()), myId)) {
             triggerNotification(new RouteDelivery(request.getMessageToRoute()));
             logger.info(String.format("[%d]%s RouteOk Message: %s", myId, myself, request.getMessageToRoute()));
         } else {
@@ -143,7 +143,7 @@ public class Chord extends GenericProtocol implements INodeListener {
     };
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
-        StringBuilder sb = new StringBuilder();
+       /* StringBuilder sb = new StringBuilder();
         sb.append("--------------------\n");
         sb.append(myself + "->" + myId + "\n");
         sb.append("Predecessor: " + predecessor + " " + (predecessor == null ? -1 : calculateId(predecessor.toString()) + "\n"));
@@ -152,7 +152,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             sb.append(f + "\n");
         }
 
-        logger.info(sb.toString());
+        logger.info(sb.toString());*/
     };
 
     private void join(Host node) {

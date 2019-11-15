@@ -1,14 +1,12 @@
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.HashMap;
-import java.util.Set;
-
 
 public class EmptyTest {
     static int k = 32;
 
     private boolean isIdBetween(int id, int start, int end, boolean includeEnd) {
+
         int minLimit = start;
         int maxLimit = end;
 
@@ -21,7 +19,7 @@ public class EmptyTest {
             }
         }
 
-        return includeEnd ?start  ==  end|| id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
+        return includeEnd ? (id > minLimit && id <= maxLimit) || id == end : id > minLimit && id < maxLimit;
     }
 
     @Test
