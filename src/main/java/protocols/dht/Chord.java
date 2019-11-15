@@ -118,15 +118,29 @@ public class Chord extends GenericProtocol implements INodeListener {
                 PropertiesUtils.getPropertyAsInt(properties, FIX_FINGERS_PERIOD));
     }
 
-    private void initStructures(Properties properties) {
-        m = PropertiesUtils.getPropertyAsInt(properties, M);
-        k = (int) Math.pow(2, m);
-        myId = generateId();
-        fingers = new ArrayList<>(m);
-        next = 0;
-        referenceCounter = new HashMap<>();
-        createRing();
-    }
+    private final ProtocolRequestHandler uponRouteRequest = (protocolRequest) -> {
+        RouteRequest request = (RouteRequest) protocolRequest;
+        logger.info(String.format("Process [%d]%s Routing %s with Id=%d", myId, myself, request.getMessageToRoute(), calculateId(request.getTopic())));
+
+        int topicId = calculateId(request.getTopic());
+        if (isSuccessor(topicId)) {
+            triggerNotification(new RouteDelivery(request.getMessageToRoute()));
+            logger.info(String.format("[%d]%s RouteOk Message: %s", myId, myself, request.getMessageToRoute()));
+        } else {
+            Host host = closestPrecedingNode(calculateId(request.getTopic()));
+
+            try {
+                RouteOk routeOk = new RouteOk(request.getTopic(), host);
+                routeOk.setDestination(Scribe.PROTOCOL_ID);
+                sendReply(routeOk);
+            } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
+                destinationProtocolDoesNotExist.printStackTrace();
+            }
+
+            sendMessage(new ForwardMessage(request.getMessageToRoute()), host);
+            logger.info(String.format("[%d]%s Sending To %s Message: %s", myId, myself, host, request.getMessageToRoute()));
+        }
+    };
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
         StringBuilder sb = new StringBuilder();
@@ -142,8 +156,6 @@ public class Chord extends GenericProtocol implements INodeListener {
     };
 
     private void join(Host node) {
-
-        addNetworkPeer(node);
         sendMessageSideChannel(new FindSuccessorRequestMessage(myId, myself), node);
     }
 
@@ -157,45 +169,32 @@ public class Chord extends GenericProtocol implements INodeListener {
 
         changeSuccessor(myself);
     }
-
-    //TODO: layer acima
-    private final ProtocolRequestHandler uponRouteRequest = (protocolRequest) -> {
-        RouteRequest request = (RouteRequest) protocolRequest;
-        logger.info(String.format("Process [%d]%s Routing %s with Id=%d", myId, myself, request.getMessageToRoute(), calculateId(request.getTopic())));
-
-        if (isIdBetween(calculateId(request.getTopic()), calculateId(predecessor.toString()), myId, true)) {
-            triggerNotification(new RouteDelivery(request.getMessageToRoute()));
-            logger.info(String.format("[%d]%s RouteOk Message: %s", myId, myself, request.getMessageToRoute()));
-        } else {
-            Host host = closestPrecedingNode2(calculateId(request.getTopic()));
-
-            try {
-                RouteOk routeOk = new RouteOk(request.getTopic(), host);
-                routeOk.setDestination(Scribe.PROTOCOL_ID);
-                sendReply(routeOk);
-            } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {
-                destinationProtocolDoesNotExist.printStackTrace();
-            }
-
-            sendMessage(new ForwardMessage(request.getMessageToRoute()), host);
-            logger.info(String.format("[%d]%s Sending To %s Message: %s", myId, myself, host, request.getMessageToRoute()));
-        }
-    };
-
     private final ProtocolMessageHandler uponFindSuccessorRequestMessage = (protocolMessage) -> {
         FindSuccessorRequestMessage message = (FindSuccessorRequestMessage) protocolMessage;
         int nodeId = message.getNodeId();
-        int successorId = calculateId(this.successor.toString());
 
-        if (predecessor == null || isIdBetween(nodeId, calculateId(predecessor.toString()), myId, true)) {
+        if (isSuccessor(nodeId)) {
             sendMessageSideChannel(new FindSuccessorResponseMessage(myself, fingers), message.getRequesterNode());
         } else {
-            Host closestPrecedingNode = closestPrecedingNode2(nodeId);
+            Host closestPrecedingNode = closestPrecedingNode(nodeId);
             if (!closestPrecedingNode.equals(myself)) {
                 sendMessage(message, closestPrecedingNode);
-            } else {
-                sendMessageSideChannel(new FindSuccessorResponseMessage(myself, fingers), message.getRequesterNode());
             }
+        }
+    };
+    private final ProtocolMessageHandler uponFindPredecessorResponseMessage = (protocolMessage) -> {
+        FindPredecessorResponseMessage message = (FindPredecessorResponseMessage) protocolMessage;
+        Host receivedPredecessor = message.getPredecessor();
+
+        int receivedPredecessorId = calculateId(receivedPredecessor.toString());
+        int successorId = fingers.get(0).getHostId();
+
+        if (successorId == myId || isIdBetween(receivedPredecessorId, myId, successorId, true)) {
+            changeSuccessor(receivedPredecessor);
+        }
+
+        if (!successor.equals(myself)) {
+            sendMessage(new NotifyPredecessorMessage(), successor);
         }
     };
 
@@ -214,72 +213,55 @@ public class Chord extends GenericProtocol implements INodeListener {
         Host predecessorToSend = predecessor == null ? myself : predecessor;
         sendMessageSideChannel(new FindPredecessorResponseMessage(predecessorToSend), protocolMessage.getFrom());
     };
-
-    private final ProtocolMessageHandler uponFindPredecessorResponseMessage = (protocolMessage) -> {
-        FindPredecessorResponseMessage message = (FindPredecessorResponseMessage) protocolMessage;
-        Host receivedPredecessor = message.getPredecessor();
-
-        int tempId = calculateId(receivedPredecessor.toString());
-        int successorId = calculateId(successor.toString());
-
-        if (successorId == myId || isIdBetween(tempId, myId, successorId, false)) {
-            changeSuccessor(receivedPredecessor);
-        }
-
-        if (!successor.equals(myself)) {
-            sendMessage(new NotifyPredecessorMessage(), successor);
-        }
-    };
-
     private final ProtocolMessageHandler uponNotifyPredecessorMessage = (protocolMessage) -> {
         Host sender = protocolMessage.getFrom();
         int senderId = calculateId(sender.toString());
 
-
-        if (predecessor == null) {
+        if (isSuccessor(senderId)) {
             changePredecessor(sender);
-        } else {
-            int predecessorId = calculateId(predecessor.toString());
-
-            if (isIdBetween(senderId, predecessorId, myId, false)) {
-                removePredecessorNetworkPeer();
-                changePredecessor(sender);
-            }
         }
     };
-
     private final ProtocolTimerHandler uponFixFingersTimer = (protocolTimer) -> {
         if (++next == m) {
             next = 1;
         }
 
         FingerEntry finger = fingers.get(next);
-        int successorToFindId = calculateFinger(myId, next);
 
         Host fingerHost = finger.getHost();
         if (!fingerHost.equals(myself)) {
-            sendMessage(new FindFingerSuccessorRequestMessage(successorToFindId, myself, next), fingerHost);
+            sendMessage(new FindFingerSuccessorRequestMessage(finger.getStart(), myself, next), fingerHost);
         } else {
             Host aux = getNewHostFromTable(myself);
-            if (!aux.equals(myself))
-               sendMessage(new FindFingerSuccessorRequestMessage(successorToFindId, myself, next), aux);
+            if (!aux.equals(myself)) {
+                sendMessage(new FindFingerSuccessorRequestMessage(finger.getStart(), myself, next), aux);
+            }
         }
     };
-
     private final ProtocolMessageHandler uponFindFingerSuccessorRequestMessage = (protocolMessage) -> {
         FindFingerSuccessorRequestMessage message = (FindFingerSuccessorRequestMessage) protocolMessage;
         int nodeId = message.getNodeId();
         int successorId = calculateId(this.successor.toString());
-        if ( isIdBetween(nodeId,myId, successorId, true)) {
+        if (isIdBetween(nodeId, myId, successorId, true)) {
             sendMessageSideChannel(new FindFingerSuccessorResponseMessage(successor, message.getNext()), message.getRequesterNode());
         } else {
-            Host closestPrecedingNode = closestPrecedingNode(nodeId);
+            Host closestPrecedingNode = closestPrecedingFingerNode(nodeId);
             if (!closestPrecedingNode.equals(myself)) {
                 sendMessage(message, closestPrecedingNode);
             }
         }
 
     };
+
+    private void initStructures(Properties properties) {
+        m = PropertiesUtils.getPropertyAsInt(properties, M);
+        k = (int) Math.pow(2, m);
+        myId = calculateId(myself.toString());
+        fingers = new ArrayList<>(m);
+        next = 0;
+        referenceCounter = new HashMap<>();
+        createRing();
+    }
 
     private final ProtocolMessageHandler uponFindFingerSuccessorResponseMessage = (protocolMessage) -> {
         FindFingerSuccessorResponseMessage message = (FindFingerSuccessorResponseMessage) protocolMessage;
@@ -293,20 +275,12 @@ public class Chord extends GenericProtocol implements INodeListener {
         finger.setHostId(calculateId(successor.toString()));
     };
 
-    private void changePredecessor(Host predecessor) {
-        addNetworkPeer(predecessor);
-        this.predecessor = predecessor;
-
-        // Verify integrity of the finger table
-        /*for (FingerEntry finger : fingers) {
-            if (finger.getHost().equals(myself)) {
-                int predecessorID = calculateId(predecessor.toString());
-                if (!isIdBetween(finger.getStart(), predecessorID, myId, true)) {
-                    finger.setHost(successor);
-                    finger.setHostId(fingers.get(0).getHostId());
-                }
-            }
-        }*/
+    private void changePredecessor(Host newPredecessor) {
+        if (predecessor != null) {
+            removePredecessorNetworkPeer();
+        }
+        addNetworkPeer(newPredecessor);
+        predecessor = newPredecessor;
     }
 
     private void fillMyTable(List<FingerEntry> fingerEntryList) {
@@ -332,51 +306,33 @@ public class Chord extends GenericProtocol implements INodeListener {
         return fingerEntryList.get(0);
     }
 
-    private Host closestPrecedingNode2(int nodeId) {
-        return closestPrecedingNode2(nodeId, fingers, myself);
-    }
-
-    private Host closestPrecedingNode2(int nodeId, List<FingerEntry> fingers, Host defaultHost) {
+    private Host closestPrecedingNode(int nodeId) {
         FingerEntry finger;
 
         for (int i = 1; i < m; i++) {
             finger = fingers.get(i);
             if (isIdBetween(nodeId, fingers.get(i - 1).getStart(), finger.getStart(), true)) {
-                if(isIdBetween(nodeId, fingers.get(i-1).getStart(), fingers.get(i-1).getHostId(), true)) {
-                    return fingers.get(i-1).getHost();
+                if (isIdBetween(nodeId, fingers.get(i - 1).getStart(), fingers.get(i - 1).getHostId(), true)) {
+                    return fingers.get(i - 1).getHost();
                 }
                 return finger.getHost();
             }
         }
 
-      /*  int x = Math.abs(nodeId - fingers.get(0).getHostId());
-        int y = Math.abs(nodeId - fingers.get(fingers.size() - 1).getHostId());
-
-        if (x > y)
-            return fingers.get(fingers.size() - 1).getHost();*/
-
         return fingers.get(0).getHost();
     }
 
-    private Host closestPrecedingNode(int nodeId) {
-        return closestPrecedingNode(nodeId, fingers, myself);
-    }
-
-    private Host closestPrecedingNode(int nodeId, List<FingerEntry> fingers, Host defaultHost) {
+    private Host closestPrecedingFingerNode(int nodeId) {
         FingerEntry finger;
 
         for (int i = m - 1; i >= 0; i--) {
             finger = fingers.get(i);
-            if (isIdBetween(finger.getHostId(), calculateId(defaultHost.toString()), nodeId, false)) {
+            if (isIdBetween(finger.getHostId(), myId, nodeId, false)) {
                 return finger.getHost();
             }
         }
 
-        return defaultHost;
-    }
-
-    private int generateId() {
-        return calculateId(myself.toString());
+        return myself;
     }
 
     private int calculateId(String seed) {
@@ -406,7 +362,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             }
         }
 
-        return includeEnd ? id==end || id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
+        return includeEnd ? id == end || id > minLimit && id <= maxLimit : id > minLimit && id < maxLimit;
     }
 
     private void changeSuccessor(Host newSuccessor) {
@@ -426,7 +382,7 @@ public class Chord extends GenericProtocol implements INodeListener {
 
     @Override
     public void nodeDown(Host host) {
-        if (predecessor.equals(host)) {
+        if (host.equals(predecessor)) {
             removePredecessorNetworkPeer();
             predecessor = null;
         }
@@ -505,4 +461,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         triggerNotification(routeDelivery);
     };
 
+    private boolean isSuccessor(int candidate) {
+        return predecessor == null || isIdBetween(candidate, calculateId(predecessor.toString()), myId, true);
+    }
 }
