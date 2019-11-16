@@ -34,23 +34,12 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
 
     private Map<String, Set<HostSubscription>> downTopicTree;
     private Map<String, Set<HostSubscription>> upTopicTree;
-    private final ProtocolReplyHandler uponRouteOk = (protocolReply) -> {
-        RouteOk routeOk = (RouteOk) protocolReply;
-        String topic = routeOk.getTopic();
-        Host forwardedTo = routeOk.getForwardedTo();
-
-        logger.info(String.format("[%s] Received route ok to %s", myself, forwardedTo));
-        Set<HostSubscription> downTopicBranch = downTopicTree.getOrDefault(topic, new HashSet<>());
-
-        if (!downTopicBranch.contains(createTempSubscription(forwardedTo))) {
-            addToUpTopicTree(topic, forwardedTo);
-        }
-    };
     private int subscriptionTTL;
     private Set<String> myTopics;
+
     private final ProtocolTimerHandler uponRecycleSubscribes = (ProtocolTimer) -> {
         for (String topic : downTopicTree.keySet()) {
-            Set<HostSubscription> downTopicBranch = new HashSet<>(downTopicTree.getOrDefault(topic, new HashSet<>()));
+            Set<HostSubscription> downTopicBranch = downTopicTree.getOrDefault(topic, new HashSet<>());
             for (HostSubscription leaf : downTopicBranch) {
                 Host host = leaf.getHost();
                 if (leaf.isTimeExpired(subscriptionTTL)) {
@@ -66,8 +55,6 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
                 ScribeMessage message = new ScribeMessage(topic, true, myself);
                 if (!isBranchEmpty(upTopicBranch)) {
                     sendToBranch(upTopicBranch, message);
-                } else {
-                    requestRoute(message);
                 }
             } else {
                 Set<HostSubscription> upTopicBranch = upTopicTree.remove(topic);
@@ -80,8 +67,22 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
             }
         }
     };
+
+    private final ProtocolReplyHandler uponRouteOk = (protocolReply) -> {
+        RouteOk routeOk = (RouteOk) protocolReply;
+        String topic = routeOk.getTopic();
+        Host forwardedTo = routeOk.getForwardedTo();
+
+        logger.info(String.format("[%s] Received route ok to %s", myself, forwardedTo));
+        Set<HostSubscription> downTopicBranch = downTopicTree.getOrDefault(topic, new HashSet<>());
+
+        if (!downTopicBranch.contains(createTempSubscription(forwardedTo))) {
+            addToUpTopicTree(topic, forwardedTo);
+        }
+    };
     private final ProtocolMessageHandler uponScribeMessage = (protocolMessage) -> {
-        processMessage((ScribeMessage) protocolMessage);
+        ScribeMessage message = (ScribeMessage) protocolMessage;
+        processMessage(message);
     };
     /**
      * Handler dissemination request from the upper level
@@ -169,7 +170,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         this.upTopicTree = new HashMap<>();
         this.myTopics = new HashSet<>();
 
-       setupPeriodicTimer(new RecycleSubscribesTimer(),
+        setupPeriodicTimer(new RecycleSubscribesTimer(),
                 PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_INIT),
                 PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_PERIOD));
     }
@@ -281,6 +282,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
     }
 
     private void processUnsubscribe(ScribeMessage message) {
+
         String topic = message.getTopic();
         Host host = message.getHost();
 
@@ -308,7 +310,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         }
 
         Set<HostSubscription> upTopicPeers = upTopicTree.getOrDefault(topic, new HashSet<>());
-        if (!upTopicPeers.contains(createTempSubscription(host))) {
+        if (!upTopicPeers.contains(createTempSubscription(host)) && !host.equals(myself)) {
             addToDownTopicTree(topic, host);
         }
     }

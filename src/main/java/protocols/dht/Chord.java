@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Properties;
 
-
 public class Chord extends GenericProtocol implements INodeListener {
 
     final static Logger logger = LogManager.getLogger(Chord.class.getName());
@@ -121,9 +120,9 @@ public class Chord extends GenericProtocol implements INodeListener {
     private final ProtocolRequestHandler uponRouteRequest = (protocolRequest) -> {
         RouteRequest request = (RouteRequest) protocolRequest;
         logger.info(String.format("Process [%d]%s Routing %s with Id=%d", myId, myself, request.getMessageToRoute(), calculateId(request.getTopic())));
-        System.err.println(request.getTopic());
         int topicId = calculateId(request.getTopic());
-        if (isIdBetween(topicId, calculateId(predecessor.toString()), myId)) {
+        System.err.println(request.getMessageToRoute().getMessageType()+"from "+request.getMessageToRoute().getHost());
+        if (isSuccessor(topicId)) {
             triggerNotification(new RouteDelivery(request.getMessageToRoute()));
             logger.info(String.format("[%d]%s RouteOk Message: %s", myId, myself, request.getMessageToRoute()));
         } else {
