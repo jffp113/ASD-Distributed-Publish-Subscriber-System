@@ -93,7 +93,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         boolean subscribe = request.isSubscribe();
 
         if (subscribe) {
-            if (!isTopicInBranch(topic)) {
+            if (!isTopicInTree(topic)) {
                 ScribeMessage message = new ScribeMessage(topic, true, myself);
                 requestRoute(message);
             }
@@ -175,7 +175,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
                 PropertiesUtils.getPropertyAsInt(properties, RECYCLE_SUBSCRIPTIONS_PERIOD));
     }
 
-    private boolean isTopicInBranch(String topic) {
+    private boolean isTopicInTree(String topic) {
         return upTopicTree.containsKey(topic) || downTopicTree.containsKey(topic);
     }
 
@@ -305,7 +305,7 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         String topic = message.getTopic();
         Host host = message.getHost();
 
-        if (!isTopicInBranch(topic) && !host.equals(myself)) {
+        if (!isTopicInTree(topic) && !host.equals(myself)) {
             requestRoute(new ScribeMessage(topic, true, myself));
         }
 

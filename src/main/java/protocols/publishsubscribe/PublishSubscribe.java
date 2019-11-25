@@ -6,6 +6,7 @@ import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
 import babel.requestreply.ProtocolRequest;
+import network.Host;
 import network.INetwork;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -14,10 +15,15 @@ import protocols.dissemination.Scribe;
 import protocols.dissemination.requests.DisseminatePubRequest;
 import protocols.dissemination.requests.DisseminateSubRequest;
 import protocols.floadbroadcastrecovery.GossipBCast;
+import protocols.multipaxos.MultiPaxos;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
+import protocols.publishsubscribe.requests.StartRequest;
 import protocols.publishsubscribe.requests.SubscribeRequest;
+import utils.PropertiesUtils;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -25,11 +31,12 @@ import java.util.Properties;
 public class PublishSubscribe extends GenericProtocol implements INotificationConsumer {
     final static Logger logger = LogManager.getLogger(PublishSubscribe.class.getName());
 
-    private static final short PROTOCOL_ID = 1000;
+    public static final short PROTOCOL_ID = 1000;
     private static final int INITIAL_CAPACITY = 100;
     private static final String PROTOCOL_NAME = "Publish/Subscriber";
-
+    private static final String MULTIPAXOS_CONTACT = "MultipaxosContact";
     private Map<String, Boolean> topics;
+    private Host multiPaxosLeader;
 
     public PublishSubscribe(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
@@ -45,6 +52,28 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     @Override
     public void init(Properties properties) {
         this.topics = new HashMap<>(INITIAL_CAPACITY);
+        multiPaxosLeader = null;
+        initMultiPaxos(properties);
+    }
+
+    private void initMultiPaxos(Properties properties) {
+        StartRequest request = new StartRequest();
+        request.setDestination(MultiPaxos.PROTOCOL_ID);
+
+        String[] multipaxosContact = PropertiesUtils.getPropertyAsString(properties, MULTIPAXOS_CONTACT).split(":");
+        request.setContact(getHost(multipaxosContact));
+
+        sendRequestToProtocol(request);
+    }
+
+    private Host getHost(String[] contact) {
+        try {
+            return new Host(InetAddress.getByName(contact[0]), Integer.parseInt(contact[1]));
+        } catch (UnknownHostException e) {
+            // Ignored
+            e.printStackTrace();
+        }
+        return null;
     }
 
     /**
@@ -95,12 +124,12 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         }
     }
 
-    public void sendRequestDecider(ProtocolRequest request){
-        if(isFrequentTopic()){
-            logger.info(String.format("%s - Sending message by Broadcast",myself));
+    public void sendRequestDecider(ProtocolRequest request) {
+        if (isFrequentTopic()) {
+            logger.info(String.format("%s - Sending message by Broadcast", myself));
             request.setDestination(GossipBCast.PROTOCOL_ID);
-        }else{
-            logger.info(String.format("%s - Sending message by Scribe",myself));
+        } else {
+            logger.info(String.format("%s - Sending message by Scribe", myself));
             request.setDestination(Scribe.PROTOCOL_ID);
         }
 
@@ -111,7 +140,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         return false;
     }
 
-    private void sendRequestToProtocol(ProtocolRequest request){
+    private void sendRequestToProtocol(ProtocolRequest request) {
         try {
             this.sendRequest(request);
         } catch (DestinationProtocolDoesNotExist destinationProtocolDoesNotExist) {

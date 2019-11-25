@@ -184,6 +184,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             }
         }
     };
+
     private final ProtocolMessageHandler uponFindPredecessorResponseMessage = (protocolMessage) -> {
         FindPredecessorResponseMessage message = (FindPredecessorResponseMessage) protocolMessage;
         Host receivedPredecessor = message.getPredecessor();
@@ -215,6 +216,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         Host predecessorToSend = predecessor == null ? myself : predecessor;
         sendMessageSideChannel(new FindPredecessorResponseMessage(predecessorToSend), protocolMessage.getFrom());
     };
+
     private final ProtocolMessageHandler uponNotifyPredecessorMessage = (protocolMessage) -> {
         Host sender = protocolMessage.getFrom();
         int senderId = calculateId(sender.toString());
@@ -223,6 +225,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             changePredecessor(sender);
         }
     };
+
     private final ProtocolTimerHandler uponFixFingersTimer = (protocolTimer) -> {
         if (++next == m) {
             next = 1;
@@ -240,6 +243,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             }
         }
     };
+
     private final ProtocolMessageHandler uponFindFingerSuccessorRequestMessage = (protocolMessage) -> {
         FindFingerSuccessorRequestMessage message = (FindFingerSuccessorRequestMessage) protocolMessage;
         int nodeId = message.getNodeId();
