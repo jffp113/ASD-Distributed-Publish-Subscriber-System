@@ -17,6 +17,7 @@ import protocols.dissemination.requests.DisseminateSubRequest;
 import protocols.floadbroadcastrecovery.GossipBCast;
 import protocols.multipaxos.MultiPaxos;
 import protocols.publishsubscribe.notifications.PBDeliver;
+import protocols.publishsubscribe.requests.ExecuteOperationRequest;
 import protocols.publishsubscribe.requests.PublishRequest;
 import protocols.publishsubscribe.requests.StartRequest;
 import protocols.publishsubscribe.requests.SubscribeRequest;
@@ -47,6 +48,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         // Requests
         registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
         registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
+        registerRequestHandler(ExecuteOperationRequest.REQUEST_ID, ddddd);
     }
 
     @Override
