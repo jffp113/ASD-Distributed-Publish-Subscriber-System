@@ -14,7 +14,7 @@ public class AcceptOperationMessage extends ProtocolMessage implements Serializa
     public static final ISerializer<AcceptOperationMessage> serializer = new ISerializer<AcceptOperationMessage>() {
         @Override
         public void serialize(AcceptOperationMessage m, ByteBuf out) {
-            out.writeInt(m.sequenceNumber);
+            out.writeInt(m.instance);
             m.operation.serialize(out);
         }
 
@@ -28,20 +28,20 @@ public class AcceptOperationMessage extends ProtocolMessage implements Serializa
             return Integer.BYTES + m.operation.serializedSize();
         }
     };
-    private int sequenceNumber;
     private Operation operation;
+    private int instance;
 
-    public AcceptOperationMessage(int sequenceNumber, Operation operation) {
+    public AcceptOperationMessage(int instance, Operation operation) {
         super(MSG_CODE);
-        this.sequenceNumber = sequenceNumber;
+        this.instance = instance;
         this.operation = operation;
-    }
-
-    public int getSequenceNumber() {
-        return sequenceNumber;
     }
 
     public Operation getOperation() {
         return operation;
+    }
+
+    public int getInstance() {
+        return instance;
     }
 }
