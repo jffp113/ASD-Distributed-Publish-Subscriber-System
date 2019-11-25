@@ -83,7 +83,7 @@ public class GossipBCast extends GenericProtocol {
         try {
             int basePort = PropertiesUtils.getPropertyAsInt(props, LISTEN_BASE_PORT);
             this.delivered = new PersistentSet<>(new TreeSet<>(), DELIVERED_FILE_NAME + basePort);
-            this.recoveryMSG = new PersistentMap<>(new HashMap<>(INITIAL_CAPACITY), RECOVERY_FILE_NAME + basePort);
+            this.recoveryMSG = new HashMap<>();
         } catch (Exception e) {
             e.printStackTrace();
         }
