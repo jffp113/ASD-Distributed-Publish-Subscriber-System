@@ -3,110 +3,144 @@ package persistence;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.io.*;
-import java.util.Collection;
-import java.util.Map;
-import java.util.Set;
+import java.nio.file.Files;
+import java.util.*;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 
-public class PersistentMap<K extends Serializable, V extends Serializable> implements Map<K, V> {
+public class PersistentMap<K extends Serializable, V extends PersistentWritable>{
 
-    private Map<K, V> map;
+    private static final String PATH = "map/";
+    private static final int IN_MEMORY = 10;
+
+    private Map<K, Queue<V>> map;
+    private Map<K, File> mapFiles;
+    private Map<K, Integer> currentSeq;
     private ObjectOutputStream out;
-    private File f;
+    private String id;
 
-    public PersistentMap(Map<K, V> map, String fileName) throws Exception {
-        this.map = map;
-        f = new File(fileName);
+    BlockingQueue<MyEntry<K,V>> vBlockingQueue;
 
-        if (!f.exists()) {
-            f.createNewFile();
-            this.out = new ObjectOutputStream(new FileOutputStream(f, true));
-        } else {
-            fillMap();
-            this.out = new AppendingObjectOutputStream(new FileOutputStream(f, true));
-        }
+    public PersistentMap(String id) {
+        this.map = new HashMap<>(64);
+        this.mapFiles = new HashMap<>(64);
+        this.currentSeq = new HashMap<>(64);
+        vBlockingQueue = new LinkedBlockingQueue();
+        this.id = id;
 
-    }
+        new Thread(() ->{
+            while(true){
+                try {
+                    writeToFile(vBlockingQueue.take());
 
-    private void fillMap() throws Exception {
-        ObjectInputStream in = new ObjectInputStream(new FileInputStream(f));
-
-        try {
-            while (true) {
-                Entry<K, V> entry = (Entry) in.readObject();
-                map.put(entry.getKey(), entry.getValue());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
-        } catch (IOException e) {
-            return;
+        }).start();
+    }
+
+    public PersistentMap(String id,HashMap<K,byte[]> state) throws Exception {
+        this(id);
+        loadState(state);
+    }
+
+    private void loadState(HashMap<K,byte[]> state) {
+
+    }
+
+    public Map<K,byte[]> getState() throws IOException {
+        Map<K,byte[]> result = new HashMap<>(map.size());
+        for(Map.Entry<K,File> entry : mapFiles.entrySet()) {
+            result.put(entry.getKey(),Files.readAllBytes(entry.getValue().toPath()));
         }
+        return result;
     }
 
-    @Override
-    public int size() {
-        return map.size();
+    private void writeToFile(MyEntry<K,V> toWrite) throws Exception{
+        File f = mapFiles.get(toWrite.getKey());
+        BufferedWriter writer = new BufferedWriter(
+                new FileWriter(f, true));
+                writer.write(toWrite.getValue().serializeToString());
+                writer.newLine();
+                writer.flush();
     }
 
-    @Override
-    public boolean isEmpty() {
-        return map.isEmpty();
+    public List<PersistentWritable> get(K topic,int offset,int max) throws Exception {
+        List<PersistentWritable> result = new LinkedList<>();
+        Integer current = currentSeq.get(topic);
+
+        if(current - IN_MEMORY <= offset){
+            int pos = current - map.get(topic).size() + 1;
+            for(V value: map.get(topic)){
+                if(pos >= offset){
+                    if(pos <= max)
+                        result.add(value);
+                }
+
+                pos++;
+            }
+        }
+        else{
+            BufferedReader reader = new BufferedReader(new FileReader(mapFiles.get(topic)));
+            int i = 1;
+            String o;
+            while((o = reader.readLine()) != null){
+                if(offset <= i){
+                    if(i > max)
+                        break;
+
+                    result.add(map.get(topic).peek().deserialize(o));
+                }
+                i++;
+            }
+        }
+
+        return result;
     }
 
-    @Override
-    public boolean containsKey(Object key) {
-        return map.containsKey(key);
+    public List<PersistentWritable> get(K topic,int offset) throws Exception {
+        return get(topic,offset,currentSeq.get(topic));
     }
 
-    @Override
-    public boolean containsValue(Object value) {
-        return map.containsValue(value);
+    public int put(K key, V value) {
+        Queue<V> list = map.get(key);
+        Integer seq = currentSeq.get(key);
+        if(list == null){
+            list = new LinkedList<>();
+            map.put(key,list);
+            createNewFile(PATH+id+key,key);
+            seq = new Integer(0);
+        }
+        list.add(value);
+        askFileWriting(new MyEntry<>(key,value));
+        currentSeq.put(key,seq +1);
+        map.put(key,list);
+        if(list.size() > IN_MEMORY){
+            list.remove();
+        }
+
+        return seq + 1;
     }
 
-    @Override
-    public V get(Object key) {
-        return map.get(key);
-    }
-
-    @Override
-    public V put(K key, V value) {
-        MyEntry<K, V> entry = new MyEntry<>(key, value);
-
+    private void createNewFile(String path,K topic){
+        File f = new File(path);
         try {
-            out.writeObject(entry);
-            out.flush();
+            f.createNewFile();
+            mapFiles.put(topic,f);
         } catch (IOException e) {
-            return null;
+            e.printStackTrace();
         }
-
-        return map.put(key, value);
     }
 
-    @Override
-    public V remove(Object key) {
-        throw new NotImplementedException();
+    private void askFileWriting(MyEntry entry){
+        try {
+            vBlockingQueue.put(entry);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
     }
 
-    @Override
-    public void putAll(Map<? extends K, ? extends V> m) {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void clear() {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public Set<K> keySet() {
-        return map.keySet();
-    }
-
-    @Override
-    public Collection<V> values() {
-        return map.values();
-    }
-
-    @Override
-    public Set<Entry<K, V>> entrySet() {
-        return map.entrySet();
-    }
 
 }

@@ -1,41 +1,59 @@
-import org.junit.Assert;
+
 import org.junit.Test;
+import persistence.PersistentMap;
+import persistence.PersistentWritable;
+
+import java.util.List;
+import java.util.Map;
 
 
 public class EmptyTest {
-    static int k = 32;
-
-    private boolean isIdBetween(int id, int start, int end, boolean includeEnd) {
-
-        int minLimit = start;
-        int maxLimit = end;
-
-        if (minLimit > maxLimit) {
-            int amountToMaxLimit = Math.abs(k - id);
-            if (amountToMaxLimit < id) {
-                maxLimit = k;
-            } else {
-                minLimit = -1;
-            }
-        }
-
-        return includeEnd ? (id > minLimit && id <= maxLimit) || id == end : id > minLimit && id < maxLimit;
-    }
 
     @Test
-    public void test1(){
-       /* HashMap<String, Set<String>> jorge= new HashMap<>(100);
-        jorge.put("jorege","jorege");
-        jorge.put("claudio","laudio");
+    public void test1() throws Exception{
+        PersistentMap<String, StringWrittable> map = new PersistentMap<>("1");
 
-        System.out.println(jor);*/
+        int a = map.put("Jorge", new StringWrittable("1"));
+        map.put("Jorge", new StringWrittable("2"));
+        map.put("Jorge", new StringWrittable("3"));
+        map.put("Jorge", new StringWrittable("4"));
+        map.put("Jorge", new StringWrittable("5"));
+        map.put("Jorge", new StringWrittable("6"));
+        map.put("Jorge", new StringWrittable("7"));
+        map.put("Jorge", new StringWrittable("8"));
+        map.put("Jorge", new StringWrittable("9"));
+        map.put("Jorge", new StringWrittable("10"));
+        map.put("Jorge", new StringWrittable("11"));
+        map.put("Jorge", new StringWrittable("12"));
+        map.put("Jorge", new StringWrittable("13"));
+        Thread.sleep(1);
+        List<PersistentWritable> list = map.get("Jorge",5,10);
+        System.out.println(list);
+        list = map.get("Jorge",1,10);
+        Map<String,byte[]> result =  map.getState();
+        System.out.println(list);
+    }
 
-        Assert.assertTrue(isIdBetween(4,0,4,true));
-        Assert.assertFalse(isIdBetween(4,0,4,false));
-        Assert.assertFalse(isIdBetween(4,0,3,true));
-        Assert.assertFalse(isIdBetween(4,0,3,false));
-        Assert.assertFalse(isIdBetween(4,7,3,false));
-        Assert.assertFalse(isIdBetween(4,4,4,false));
-        Assert.assertTrue(isIdBetween(4,4,4,true));
+    class StringWrittable implements PersistentWritable {
+        public String ola;
+
+        public StringWrittable(String ola) {
+            this.ola = ola;
+        }
+
+        @Override
+        public String serializeToString() {
+            return ola;
+        }
+
+        @Override
+        public PersistentWritable deserialize(String object) {
+            return new StringWrittable(object);
+        }
+
+        @Override
+        public String toString() {
+            return ola;
+        }
     }
 }
