@@ -7,18 +7,17 @@ import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class PersistentMap<K extends Serializable, V extends PersistentWritable>{
+public class PersistentMap<K extends Serializable> {
 
     private static final String PATH = "map/";
     private static final int IN_MEMORY = 10;
 
-    private Map<K, Queue<V>> map;
+    BlockingQueue<MyEntry<K, String>> vBlockingQueue;
     private Map<K, File> mapFiles;
     private Map<K, Integer> currentSeq;
     private ObjectOutputStream out;
     private String id;
-
-    BlockingQueue<MyEntry<K,V>> vBlockingQueue;
+    private Map<K, Queue<String>> map;
 
     public PersistentMap(String id) {
         this.map = new HashMap<>(64);
@@ -27,8 +26,8 @@ public class PersistentMap<K extends Serializable, V extends PersistentWritable>
         vBlockingQueue = new LinkedBlockingQueue();
         this.id = id;
 
-        new Thread(() ->{
-            while(true){
+        new Thread(() -> {
+            while (true) {
                 try {
                     writeToFile(vBlockingQueue.take());
 
@@ -39,57 +38,56 @@ public class PersistentMap<K extends Serializable, V extends PersistentWritable>
         }).start();
     }
 
-    public PersistentMap(String id,HashMap<K,byte[]> state) throws Exception {
+    public PersistentMap(String id, HashMap<K, byte[]> state) throws Exception {
         this(id);
         loadState(state);
     }
 
-    private void loadState(HashMap<K,byte[]> state) {
+    private void loadState(HashMap<K, byte[]> state) {
 
     }
 
-    public Map<K,byte[]> getState() throws IOException {
-        Map<K,byte[]> result = new HashMap<>(map.size());
-        for(Map.Entry<K,File> entry : mapFiles.entrySet()) {
-            result.put(entry.getKey(),Files.readAllBytes(entry.getValue().toPath()));
+    public Map<K, byte[]> getState() throws IOException {
+        Map<K, byte[]> result = new HashMap<>(map.size());
+        for (Map.Entry<K, File> entry : mapFiles.entrySet()) {
+            result.put(entry.getKey(), Files.readAllBytes(entry.getValue().toPath()));
         }
         return result;
     }
 
-    private void writeToFile(MyEntry<K,V> toWrite) throws Exception{
+    private void writeToFile(MyEntry<K, String> toWrite) throws Exception {
         File f = mapFiles.get(toWrite.getKey());
         BufferedWriter writer = new BufferedWriter(
                 new FileWriter(f, true));
-                writer.write(toWrite.getValue().serializeToString());
-                writer.newLine();
-                writer.flush();
+        writer.write(toWrite.getValue());
+        writer.newLine();
+        writer.flush();
     }
 
-    public List<PersistentWritable> get(K topic,int offset,int max) throws Exception {
-        List<PersistentWritable> result = new LinkedList<>();
+    public List<String> get(K topic, int offset, int max) throws Exception {
+        List<String> result = new LinkedList<>();
         Integer current = currentSeq.get(topic);
 
-        if(current - IN_MEMORY <= offset){
+        if (current - IN_MEMORY <= offset) {
             int pos = current - map.get(topic).size() + 1;
-            for(V value: map.get(topic)){
-                if(pos >= offset){
-                    if(pos <= max)
+            for (String value : map.get(topic)) {
+                if (pos >= offset) {
+                    if (pos <= max)
                         result.add(value);
                 }
 
                 pos++;
             }
-        }
-        else{
+        } else {
             BufferedReader reader = new BufferedReader(new FileReader(mapFiles.get(topic)));
             int i = 1;
             String o;
-            while((o = reader.readLine()) != null){
-                if(offset <= i){
-                    if(i > max)
+            while ((o = reader.readLine()) != null) {
+                if (offset <= i) {
+                    if (i > max)
                         break;
 
-                    result.add(map.get(topic).peek().deserialize(o));
+                    result.add(o);
                 }
                 i++;
             }
@@ -98,41 +96,41 @@ public class PersistentMap<K extends Serializable, V extends PersistentWritable>
         return result;
     }
 
-    public List<PersistentWritable> get(K topic,int offset) throws Exception {
-        return get(topic,offset,currentSeq.get(topic));
+    public List<String> get(K topic, int offset) throws Exception {
+        return get(topic, offset, currentSeq.get(topic));
     }
 
-    public int put(K key, V value) {
-        Queue<V> list = map.get(key);
+    public int put(K key, String value) {
+        Queue<String> list = map.get(key);
         Integer seq = currentSeq.get(key);
-        if(list == null){
+        if (list == null) {
             list = new LinkedList<>();
-            map.put(key,list);
-            createNewFile(PATH+id+key,key);
+            map.put(key, list);
+            createNewFile(PATH + id + key, key);
             seq = new Integer(0);
         }
         list.add(value);
-        askFileWriting(new MyEntry<>(key,value));
-        currentSeq.put(key,seq +1);
-        map.put(key,list);
-        if(list.size() > IN_MEMORY){
+        askFileWriting(new MyEntry<>(key, value));
+        currentSeq.put(key, seq + 1);
+        map.put(key, list);
+        if (list.size() > IN_MEMORY) {
             list.remove();
         }
 
         return seq + 1;
     }
 
-    private void createNewFile(String path,K topic){
+    private void createNewFile(String path, K topic) {
         File f = new File(path);
         try {
             f.createNewFile();
-            mapFiles.put(topic,f);
+            mapFiles.put(topic, f);
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    private void askFileWriting(MyEntry entry){
+    private void askFileWriting(MyEntry entry) {
         try {
             vBlockingQueue.put(entry);
         } catch (InterruptedException e) {

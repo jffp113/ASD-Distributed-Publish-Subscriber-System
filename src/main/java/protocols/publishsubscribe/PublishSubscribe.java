@@ -12,15 +12,23 @@ import network.Host;
 import network.INetwork;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import persistence.PersistentMap;
 import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
 import protocols.dissemination.requests.DisseminateSubRequest;
 import protocols.multipaxos.MultiPaxos;
+import protocols.multipaxos.OrderOperation;
+import protocols.multipaxos.messages.RequestForOrderMessage;
+import protocols.multipaxos.notifications.DecideNotification;
+import protocols.multipaxos.requests.ProposeRequest;
 import protocols.publishsubscribe.messages.GiveMeYourReplicasMessage;
 import protocols.publishsubscribe.messages.TakeMyReplicasMessage;
 import protocols.publishsubscribe.notifications.OwnerNotification;
 import protocols.publishsubscribe.notifications.PBDeliver;
-import protocols.publishsubscribe.requests.*;
+import protocols.publishsubscribe.requests.FindOwnerRequest;
+import protocols.publishsubscribe.requests.PublishRequest;
+import protocols.publishsubscribe.requests.StartRequest;
+import protocols.publishsubscribe.requests.SubscribeRequest;
 import utils.PropertiesUtils;
 
 import java.net.InetAddress;
@@ -38,30 +46,25 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     private Map<String, Boolean> topics;
     private Host multiPaxosLeader;
     private Map<String, List<String>> waiting;
+    private final ProtocolNotificationHandler uponOrderDecideNotification = (protocolNotification) -> {
+
+    };
+    private final ProtocolMessageHandler uponGiveMeYourReplicasMessage = protocolMessage -> {
+        GiveMeYourReplicasMessage m = (GiveMeYourReplicasMessage) protocolMessage;
+        sendMessageSideChannel(new TakeMyReplicasMessage(m.getTopic(), membership), m.getFrom());
+    };
     private Host leader;
     private List<Host> membership;
-
-    public PublishSubscribe(INetwork net) throws Exception {
-        super(PROTOCOL_NAME, PROTOCOL_ID, net);
-
-        // Notifications produced
-        registerNotification(PBDeliver.NOTIFICATION_ID, PBDeliver.NOTIFICATION_NAME);
-
-        // Requests
-        registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
-        registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
-        registerNotificationHandler(Chord.PROTOCOL_ID, OwnerNotification.NOTIFICATION_ID, uponOwnerNotification);
-        registerMessageHandler(GiveMeYourReplicasMessage.NOTIFICATION_ID,uponGiveMeYourReplicasMessage,GiveMeYourReplicasMessage.serializer);
-        registerMessageHandler(TakeMyReplicasMessage.NOTIFICATION_ID,uponTakeMyReplicasMessage,TakeMyReplicasMessage.serializer);
-    }
-
-    @Override
-    public void init(Properties properties) {
-        this.topics = new HashMap<>(INITIAL_CAPACITY);
-        multiPaxosLeader = null;
-        waiting = new HashMap<>(64);
-        initMultiPaxos(properties);
-    }
+    private Map<String, List<String>> unordered;
+    private final ProtocolMessageHandler uponRequestForOrderMessage = (protocolMessage) -> {
+        RequestForOrderMessage message = (RequestForOrderMessage) protocolMessage;
+        String topic = message.getTopic();
+        List<String> messages = message.getMessages();
+        List<String> unorderedList = this.unordered.getOrDefault(topic, new LinkedList<>());
+        unorderedList.addAll(messages);
+        requestOrdering(topic, messages);
+    };
+    private PersistentMap<String> ownedTopics;
 
     private void initMultiPaxos(Properties properties) {
         StartRequest request = new StartRequest();
@@ -85,10 +88,22 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         }
         return null;
     }
+    private Random r;
+    private final ProtocolMessageHandler uponTakeMyReplicasMessage = protocolMessage -> {
+        TakeMyReplicasMessage m = (TakeMyReplicasMessage) protocolMessage;
+        String topic = m.getTopic();
+        Host replica = pickRandomFromMembership(m.getReplicas());
+        List<String> toOrder = this.waiting.remove(topic);
 
+        if (toOrder != null) {
+            sendMessageSideChannel(new RequestForOrderMessage(topic, toOrder), replica);
+        }
+
+    };
     /**
      * Fill the map with the client's subscribed topics or remove them.
      */
+
     private ProtocolRequestHandler uponSubscribeRequest = (protocolRequest) -> {
         SubscribeRequest subscribeRequest = (SubscribeRequest) protocolRequest;
         String topic = subscribeRequest.getTopic();
@@ -107,7 +122,6 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         DisseminateSubRequest disseminateSubRequest = new DisseminateSubRequest(topic, isSubscribe);
         sendRequestDecider(disseminateSubRequest);
     };
-
     /**
      * Sends a publish requests to the underlying protocol.
      */
@@ -116,29 +130,60 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         FindOwnerRequest request = new FindOwnerRequest(pRequest.getMessage());
 
         List<String> message = waiting.get(pRequest.getTopic());
-        if(message == null) {
+        if (message == null) {
             sendRequestDecider(request);
             message = new LinkedList<>();
-            waiting.put(pRequest.getTopic(),message);
+            waiting.put(pRequest.getTopic(), message);
         }
 
         message.add(pRequest.getMessage());
     };
-
     private ProtocolNotificationHandler uponOwnerNotification = protocolNotification -> {
-        OwnerNotification notification = (OwnerNotification)protocolNotification;
+        OwnerNotification notification = (OwnerNotification) protocolNotification;
         sendMessageSideChannel(new GiveMeYourReplicasMessage(notification.getTopic()),
                 notification.getOwner());
     };
 
-    private final ProtocolMessageHandler uponGiveMeYourReplicasMessage = protocolMessage -> {
-        GiveMeYourReplicasMessage m = (GiveMeYourReplicasMessage)protocolMessage;
-        sendMessageSideChannel(new TakeMyReplicasMessage(m.getTopic(), membership),m.getFrom());
-    };
-    private final ProtocolMessageHandler uponTakeMyReplicasMessage = protocolMessage -> {
-        TakeMyReplicasMessage m = (TakeMyReplicasMessage)protocolMessage;
-        m.getReplicas().get(0); //TODO
-    };
+    public PublishSubscribe(INetwork net) throws Exception {
+        super(PROTOCOL_NAME, PROTOCOL_ID, net);
+
+        // Notifications produced
+        registerNotification(PBDeliver.NOTIFICATION_ID, PBDeliver.NOTIFICATION_NAME);
+
+        // Requests
+        registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
+        registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
+        registerNotificationHandler(Chord.PROTOCOL_ID, OwnerNotification.NOTIFICATION_ID, uponOwnerNotification);
+        registerNotificationHandler(MultiPaxos.PROTOCOL_ID, DecideNotification.NOTIFICATION_ID, uponOrderDecideNotification);
+        registerMessageHandler(GiveMeYourReplicasMessage.MSG_CODE, uponGiveMeYourReplicasMessage, GiveMeYourReplicasMessage.serializer);
+        registerMessageHandler(TakeMyReplicasMessage.MSG_CODE, uponTakeMyReplicasMessage, TakeMyReplicasMessage.serializer);
+        registerMessageHandler(RequestForOrderMessage.MSG_CODE, uponRequestForOrderMessage, RequestForOrderMessage.serializer);
+
+    }
+
+    @Override
+    public void init(Properties properties) {
+        this.topics = new HashMap<>(INITIAL_CAPACITY);
+        this.multiPaxosLeader = null;
+        this.waiting = new HashMap<>(64);
+        this.unordered = new HashMap<>(64);
+        this.r = new Random();
+        initMultiPaxos(properties);
+    }
+
+    private void requestOrdering(String topic, List<String> messages) {
+        Operation orderOp = new OrderOperation(topic, messages);
+        ProposeRequest request = new ProposeRequest(orderOp);
+        request.setDestination(MultiPaxos.PROTOCOL_ID);
+        sendRequestToProtocol(request);
+    }
+
+    private Host pickRandomFromMembership(List<Host> membership) {
+        int size = membership.size();
+        int idx = r.nextInt() % size;
+
+        return membership.get(idx);
+    }
 
     /**
      * Triggers a notification to the client.

@@ -2,19 +2,14 @@ package protocols.multipaxos.messages;
 
 import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
-import network.Host;
 import network.ISerializer;
-import protocols.multipaxos.Operation;
+import protocols.multipaxos.OrderOperation;
 
 import java.io.Serializable;
 
 public class OperationMessage extends ProtocolMessage implements Serializable {
 
     public final static short MSG_CODE = 235;
-
-    public OperationMessage() {
-        super(MSG_CODE);
-    }
 
     public static final ISerializer<OperationMessage> serializer = new ISerializer<OperationMessage>() {
         @Override
@@ -24,7 +19,7 @@ public class OperationMessage extends ProtocolMessage implements Serializable {
 
         @Override
         public OperationMessage deserialize(ByteBuf in) {
-            return new OperationMessage(Operation.deserialize(in));
+            return new OperationMessage(OrderOperation.deserialize(in));
         }
 
         @Override
@@ -33,14 +28,18 @@ public class OperationMessage extends ProtocolMessage implements Serializable {
         }
     };
     private int sequenceNumber;
-    private Operation operation;
 
-    public OperationMessage(Operation operation) {
+    public OperationMessage() {
+        super(MSG_CODE);
+    }
+    private OrderOperation operation;
+
+    public OperationMessage(OrderOperation operation) {
         super(MSG_CODE);
         this.operation = operation;
     }
 
-    public Operation getOperation() {
+    public OrderOperation getOperation() {
         return operation;
     }
 }

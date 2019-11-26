@@ -11,12 +11,12 @@ import network.INetwork;
 import network.INodeListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import persistence.PersistentMap;
 import protocols.multipaxos.messages.*;
+import protocols.multipaxos.notifications.DecideNotification;
 import protocols.multipaxos.notifications.LeaderNotification;
+import protocols.multipaxos.requests.ProposeRequest;
 import protocols.multipaxos.timers.PrepareTimer;
 import protocols.publishsubscribe.PublishSubscribe;
-import protocols.publishsubscribe.requests.ExecuteOperationRequest;
 import protocols.publishsubscribe.requests.StartRequest;
 import protocols.publishsubscribe.requests.StartRequestReply;
 import utils.PropertiesUtils;
@@ -35,6 +35,37 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     private int mySequenceNumber;
     private Host leader;
     private int leaderSN;
+    private int prepareTimout;
+    private int prepareOks;
+    private boolean prepareIssued;
+    private int paxosInstance;
+    private final ProtocolMessageHandler uponAcceptOperation = (protocolMessage) -> {
+        AcceptOperationMessage message = (AcceptOperationMessage) protocolMessage;
+        OrderOperation operation = message.getOperation();
+        int instance = message.getInstance();
+
+        if (instance == this.paxosInstance + 1) {
+            this.paxosInstance = instance;
+            //  this.acceptedOperations.put(KEY, operation);
+
+            triggerNotification(new DecideNotification(operation));
+        } else {
+
+        }
+
+    };
+    private Set<Host> replicaSet;
+    private final ProtocolRequestHandler uponProposeRequest = (protocolRequest) -> {
+        ProposeRequest request = (ProposeRequest) protocolRequest;
+        OrderOperation operation = request.getOperation();
+        processPropose(operation);
+    };
+    private final ProtocolMessageHandler uponForwardProposeMessage = (protocolMessage) -> {
+        ForwardProposeMessage message = (ForwardProposeMessage) protocolMessage;
+        OrderOperation operation = message.getOperation();
+        processPropose(operation);
+    };
+
     private final ProtocolMessageHandler uponPrepareMessage = (protocolMessage) -> {
         PrepareMessage message = (PrepareMessage) protocolMessage;
         this.leader = message.getFrom();
@@ -46,10 +77,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         sendMessage(prepareOk, message.getFrom());
         deliverNotification(new LeaderNotification(this.leader, this.leaderSN));
     };
-    private int prepareOks;
-    private boolean prepareIssued;
-    private int paxosInstance;
-    private Set<Host> replicaSet;
+
     private final ProtocolRequestHandler uponStartRequest = (protocolRequest) -> {
         StartRequest request = (StartRequest) protocolRequest;
         Host contact = request.getContact();
@@ -67,6 +95,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         }
 
     };
+    private Map<Integer, OrderOperation> pendingOperations;
 
     public MultiPaxos(INetwork net) throws HandlerRegistrationException {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
@@ -76,9 +105,36 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         registerMessageHandler(AddReplicaMessage.MSG_CODE, uponAddReplicaMessage, AddReplicaMessage.serializer);
         registerMessageHandler(PrepareMessage.MSG_CODE, uponPrepareMessage, PrepareMessage.serializer);
         registerMessageHandler(PrepareOk.MSG_CODE, uponPrepareOk, PrepareOk.serializer);
-        registerMessageHandler(OperationMessage.MSG_CODE, uponOperation, OperationMessage.serializer);
+        registerMessageHandler(ForwardProposeMessage.MSG_CODE, uponForwardProposeMessage, ForwardProposeMessage.serializer);
+        registerMessageHandler(AcceptOperationMessage.MSG_CODE, uponAcceptOperation, AcceptOperationMessage.serializer);
         registerTimerHandler(PrepareTimer.TIMER_CODE, uponPrepareTimer);
+        registerRequestHandler(ProposeRequest.REQUEST_ID, uponProposeRequest);
+
     }
+
+    @Override
+    public void init(Properties properties) {
+        this.leader = null;
+        this.leaderSN = 0;
+        this.replicaSet = new HashSet<>();
+        this.pendingOperations = new HashMap<>();
+        this.mySequenceNumber = 0;
+        //this.acceptedOperations = new PersistentMap<>(myself.toString());
+        //this.operationsToExecute = new LinkedList<>();
+        this.prepareTimout = PropertiesUtils.getPropertyAsInt(properties, PREPARE_TIMEOUT);
+        this.prepareOks = 0;
+        this.prepareIssued = false;
+        this.paxosInstance = 0;
+    }
+
+    private void processPropose(OrderOperation operation) {
+        if (imLeader()) {
+            accept(operation);
+        } else {
+            sendMessage(new ForwardProposeMessage(operation), this.leader);
+        }
+    }
+
     private final ProtocolMessageHandler uponPrepareOk = (protocolMessage) -> {
         PrepareOk message = (PrepareOk) protocolMessage;
 
@@ -103,7 +159,6 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
             sendPrepare();
         }
     };
-    private PersistentMap<String, Operation> acceptedOperations;
 
     private final ProtocolMessageHandler uponAddReplicaMessage = (protocolMessage) -> {
         AddReplicaMessage message = (AddReplicaMessage) protocolMessage;
@@ -115,58 +170,20 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
             logger.info("Forwarding message to leader %s\n", this.leader);
         }
     };
-    private final ProtocolMessageHandler uponOperation = (protocolMessage) -> {
-        OperationMessage message = (OperationMessage) protocolMessage;
-        Operation operation = message.getOperation();
-        this.acceptedOperations.put(KEY, operation);
+
+    private void accept(OrderOperation operation) {
         sendMessageToReplicaSet(new AcceptOperationMessage(++this.paxosInstance, operation));
-    };
-    private final ProtocolMessageHandler uponAcceptOperation = (protocolMessage) -> {
-        AcceptOperationMessage message = (AcceptOperationMessage) protocolMessage;
-        Operation operation = message.getOperation();
-        int instance = message.getInstance();
-
-        if (instance == this.paxosInstance + 1) {
-            this.paxosInstance = instance;
-            this.acceptedOperations.put(KEY, operation);
-
-            ExecuteOperationRequest execOp = new ExecuteOperationRequest(message.getInstance(), operation);
-            execOp.setDestination(PublishSubscribe.PROTOCOL_ID);
-            deliverRequest(execOp);
-        } else {
-
-
-        }
-
-    };
-    private Map<Integer, Operation> pendingOperations;
-
-    @Override
-    public void init(Properties properties) {
-        this.leader = null;
-        this.leaderSN = 0;
-        this.replicaSet = new HashSet<>();
-        this.pendingOperations = new HashMap<>();
-        this.mySequenceNumber = 0;
-        this.acceptedOperations = new PersistentMap<>(myself.toString());
-        //this.operationsToExecute = new LinkedList<>();
-        this.prepareTimout = PropertiesUtils.getPropertyAsInt(properties, PREPARE_TIMEOUT);
-        this.prepareOks = 0;
-        this.prepareIssued = false;
-        this.paxosInstance = 0;
     }
-
-    private int prepareTimout;
 
     private void removeReplica(Host leader) {
 
     }
 
-    private Operation pickHighestOperation(List<Operation> operations) {
-        Map<Operation, Integer> result = new HashMap<>();
+    private OrderOperation pickHighestOperation(List<OrderOperation> operations) {
+        Map<OrderOperation, Integer> result = new HashMap<>();
         int hSeq = Integer.MIN_VALUE;
 
-        for (Operation op : operations) {
+        for (OrderOperation op : operations) {
             Integer occ = result.get(op);
             if (occ == null) {
                 occ = new Integer(0);
@@ -180,8 +197,8 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
                 return op;
             }
         }
-        Operation o = operations.get(0);
-        o.setSeq(hSeq);
+        OrderOperation o = operations.get(0);
+        // o.setSeq(hSeq);
         return o;
     }
 

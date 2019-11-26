@@ -7,6 +7,7 @@ import babel.protocol.GenericProtocol;
 import babel.protocol.event.ProtocolMessage;
 import network.Host;
 import network.INetwork;
+import network.INodeListener;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import protocols.dht.Chord;
@@ -22,7 +23,7 @@ import utils.PropertiesUtils;
 
 import java.util.*;
 
-public class Scribe extends GenericProtocol implements INotificationConsumer {
+public class Scribe extends GenericProtocol implements INotificationConsumer, INodeListener {
     final static Logger logger = LogManager.getLogger(Scribe.class.getName());
 
     public static final short PROTOCOL_ID = 14153;
@@ -333,10 +334,12 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
      * @param host
      */
     private void addToDownTopicTree(String topic, Host host) {
-        addToTopicTree(topic, host, downTopicTree);
+        addNetworkPeer(host);
+        addToTopicTree(topic, host, this.downTopicTree);
     }
 
     private void addToUpTopicTree(String topic, Host host) {
+        addNetworkPeer(host);
         addToTopicTree(topic, host, this.upTopicTree);
     }
 
@@ -381,4 +384,18 @@ public class Scribe extends GenericProtocol implements INotificationConsumer {
         removeFromTopicTree(topic, host, this.upTopicTree);
     }
 
+    @Override
+    public void nodeDown(Host host) {
+
+    }
+
+    @Override
+    public void nodeUp(Host host) {
+
+    }
+
+    @Override
+    public void nodeConnectionReestablished(Host host) {
+
+    }
 }

@@ -136,7 +136,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         } else {
             Host host = closestPrecedingNode(calculateId(request.getTopic()));
 
-            sendMessage(, host);
+            //sendMessage(, host);
             logger.info(String.format("[%d]%s Sending To %s Message: %s", myId, myself, host, request.getTopic()));
         }
     };

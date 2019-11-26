@@ -1,14 +1,14 @@
 package protocols.publishsubscribe.requests;
 
 import babel.requestreply.ProtocolRequest;
-import protocols.multipaxos.Operation;
+import protocols.multipaxos.OrderOperation;
 
 public class ExecuteOperationRequest extends ProtocolRequest {
     public static short REQUEST_ID = 13000;
     private int sequenceNumber;
-    private Operation operation;
+    private OrderOperation operation;
 
-    public ExecuteOperationRequest(int sequenceNumber, Operation operation) {
+    public ExecuteOperationRequest(int sequenceNumber, OrderOperation operation) {
         super(REQUEST_ID);
         this.sequenceNumber = sequenceNumber;
         this.operation = operation;
@@ -18,7 +18,7 @@ public class ExecuteOperationRequest extends ProtocolRequest {
         return sequenceNumber;
     }
 
-    public Operation getOperation() {
+    public OrderOperation getOperation() {
         return operation;
     }
 }

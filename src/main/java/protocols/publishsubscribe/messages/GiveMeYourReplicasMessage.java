@@ -5,11 +5,10 @@ import io.netty.buffer.ByteBuf;
 import network.ISerializer;
 
 import java.net.UnknownHostException;
-import java.util.UUID;
 
 public class GiveMeYourReplicasMessage extends ProtocolMessage {
 
-    public final static short NOTIFICATION_ID = 102;
+    public final static short MSG_CODE = 102;
     private String topic;
 
     public static final ISerializer<GiveMeYourReplicasMessage> serializer = new ISerializer<GiveMeYourReplicasMessage>() {
@@ -36,7 +35,7 @@ public class GiveMeYourReplicasMessage extends ProtocolMessage {
     };
 
     public GiveMeYourReplicasMessage(String topic) {
-        super(NOTIFICATION_ID);
+        super(MSG_CODE);
         this.topic = topic;
     }
 

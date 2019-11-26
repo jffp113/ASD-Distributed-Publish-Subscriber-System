@@ -3,7 +3,7 @@ package protocols.multipaxos.messages;
 import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
 import network.ISerializer;
-import protocols.multipaxos.Operation;
+import protocols.multipaxos.OrderOperation;
 
 import java.io.Serializable;
 
@@ -20,7 +20,7 @@ public class AcceptOperationMessage extends ProtocolMessage implements Serializa
 
         @Override
         public AcceptOperationMessage deserialize(ByteBuf in) {
-            return new AcceptOperationMessage(in.readInt(), Operation.deserialize(in));
+            return new AcceptOperationMessage(in.readInt(), OrderOperation.deserialize(in));
         }
 
         @Override
@@ -28,20 +28,20 @@ public class AcceptOperationMessage extends ProtocolMessage implements Serializa
             return Integer.BYTES + m.operation.serializedSize();
         }
     };
-    private Operation operation;
     private int instance;
+    private OrderOperation operation;
 
-    public AcceptOperationMessage(int instance, Operation operation) {
+    public AcceptOperationMessage(int instance, OrderOperation operation) {
         super(MSG_CODE);
         this.instance = instance;
         this.operation = operation;
     }
 
-    public Operation getOperation() {
-        return operation;
-    }
-
     public int getInstance() {
         return instance;
+    }
+
+    public OrderOperation getOperation() {
+        return operation;
     }
 }

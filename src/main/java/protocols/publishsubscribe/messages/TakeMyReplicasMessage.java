@@ -11,7 +11,7 @@ import java.util.List;
 
 public class TakeMyReplicasMessage extends ProtocolMessage {
 
-    public final static short NOTIFICATION_ID = 102;
+    public final static short MSG_CODE = 102;
     private String topic;
     private List<Host> replicas;
 
@@ -57,7 +57,7 @@ public class TakeMyReplicasMessage extends ProtocolMessage {
     }
 
     public TakeMyReplicasMessage(String topic, List<Host> replicas) {
-        super(NOTIFICATION_ID);
+        super(MSG_CODE);
         this.topic = topic;
         this.replicas = replicas;
     }

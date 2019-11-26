@@ -2,9 +2,8 @@ package protocols.multipaxos.messages;
 
 import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
-import network.Host;
 import network.ISerializer;
-import protocols.multipaxos.Operation;
+import protocols.multipaxos.OrderOperation;
 
 import java.io.Serializable;
 
@@ -25,7 +24,7 @@ public class PrepareOk extends ProtocolMessage implements Serializable {
 
         @Override
         public PrepareOk deserialize(ByteBuf in) {
-            return new PrepareOk(in.readInt(), Operation.deserialize(in));
+            return new PrepareOk(in.readInt(), OrderOperation.deserialize(in));
         }
 
         @Override
@@ -34,9 +33,9 @@ public class PrepareOk extends ProtocolMessage implements Serializable {
         }
     };
     private int sequenceNumber;
-    private Operation operation;
+    private OrderOperation operation;
 
-    public PrepareOk(int sequenceNumber, Operation operation) {
+    public PrepareOk(int sequenceNumber, OrderOperation operation) {
         super(MSG_CODE);
         this.sequenceNumber = sequenceNumber;
         this.operation = operation;
@@ -46,7 +45,7 @@ public class PrepareOk extends ProtocolMessage implements Serializable {
         return sequenceNumber;
     }
 
-    public Operation getOperation() {
+    public OrderOperation getOperation() {
         return operation;
     }
 }
