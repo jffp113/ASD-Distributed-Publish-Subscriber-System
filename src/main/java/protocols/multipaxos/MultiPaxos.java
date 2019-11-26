@@ -24,7 +24,7 @@ import utils.PropertiesUtils;
 import java.util.*;
 
 public class MultiPaxos extends GenericProtocol implements INodeListener {
-    public static final short PROTOCOL_ID = 1243;
+    public static final short PROTOCOL_ID = 15243;
     private static final String PROTOCOL_NAME = "MultiPaxos";
 
     private static final String PREPARE_TIMEOUT = "prepareTimeout";

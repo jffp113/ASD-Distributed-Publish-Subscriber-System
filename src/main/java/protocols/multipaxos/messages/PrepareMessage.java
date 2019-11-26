@@ -8,7 +8,7 @@ import java.io.Serializable;
 
 public class PrepareMessage extends ProtocolMessage implements Serializable {
 
-    public final static short MSG_CODE = 20005;
+    public final static short MSG_CODE = 2005;
     public static final ISerializer<PrepareMessage> serializer = new ISerializer<PrepareMessage>() {
         @Override
         public void serialize(PrepareMessage m, ByteBuf out) {

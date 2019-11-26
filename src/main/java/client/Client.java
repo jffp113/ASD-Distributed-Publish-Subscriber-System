@@ -7,10 +7,12 @@ import network.INetwork;
 import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
 import protocols.dissemination.Scribe;
+import protocols.multipaxos.MultiPaxos;
 import protocols.publishsubscribe.PublishSubscribe;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.PublishRequest;
 import protocols.publishsubscribe.requests.SubscribeRequest;
+import utils.PropertiesUtils;
 
 import java.util.Properties;
 
@@ -21,15 +23,32 @@ public class Client implements INotificationConsumer {
     private static final String LISTEN_BASE_PORT = "listen_base_port";
     private PublishSubscribe pubSub;
     private Properties properties;
+    private MultiPaxos paxos;
+    private Babel babel;
+    private INetwork net;
 
     public Client(String[] args) throws Exception {
-        Babel babel = Babel.getInstance();
+        babel = Babel.getInstance();
         properties = babel.loadConfig(NETWORK_CONFIG_PROPERTIES, args);
-        INetwork net = babel.getNetworkInstance();
+        net = babel.getNetworkInstance();
 
-      /*  HyParView hyParView = new HyParView(net);
-        hyParView.init(properties);
-        babel.registerProtocol(hyParView);*/
+        if(!PropertiesUtils.getPropertyAsBool(properties,"replica"))
+            activeReplicaProtocols();
+
+        paxos = new MultiPaxos(net);
+        paxos.init(properties);
+        babel.registerProtocol(paxos);
+
+        this.pubSub = new PublishSubscribe(net);
+        this.pubSub.init(properties);
+        babel.registerProtocol(pubSub);
+
+        pubSub.subscribeNotification(PBDeliver.NOTIFICATION_ID, this);
+
+        babel.start();
+    }
+
+    private void activeReplicaProtocols() throws Exception {
         Chord chord = new Chord(net);
         chord.init(properties);
         babel.registerProtocol(chord);
@@ -37,19 +56,7 @@ public class Client implements INotificationConsumer {
         Scribe scribe = new Scribe(net);
         scribe.init(properties);
         babel.registerProtocol(scribe);
-
-        this.pubSub = new PublishSubscribe(net);
-        this.pubSub.init(properties);
-        babel.registerProtocol(pubSub);
-
-     /*   GossipBCast bCast = new GossipBCast(net);
-        bCast.init(properties);
-        babel.registerProtocol(bCast);*/
-
         scribe.subscribeNotification(MessageDeliver.NOTIFICATION_ID, pubSub);
-        pubSub.subscribeNotification(PBDeliver.NOTIFICATION_ID, this);
-
-        babel.start();
     }
 
     /**

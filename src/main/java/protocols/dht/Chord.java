@@ -18,6 +18,8 @@ import protocols.dissemination.Scribe;
 import protocols.dissemination.notifications.RouteDelivery;
 import protocols.dissemination.requests.RouteOk;
 import protocols.partialmembership.timers.DebugTimer;
+import protocols.publishsubscribe.notifications.OwnerNotification;
+import protocols.publishsubscribe.requests.FindOwnerRequest;
 import utils.PropertiesUtils;
 
 import java.net.InetAddress;
@@ -61,6 +63,8 @@ public class Chord extends GenericProtocol implements INodeListener {
         registerNotification(RouteDelivery.NOTIFICATION_ID, RouteDelivery.NOTIFICATION_NAME);
         registerRequestHandler(RouteRequest.REQUEST_ID, uponRouteRequest);
 
+        registerRequestHandler(FindOwnerRequest.REQUEST_ID, uponFindOwnerRequest);
+
         // Timers
         registerTimerHandler(StabilizeTimer.TimerCode, uponStabilizeTimer);
         registerTimerHandler(FixFingersTimer.TimerCode, uponFixFingersTimer);
@@ -83,6 +87,9 @@ public class Chord extends GenericProtocol implements INodeListener {
         registerMessageHandler(FindFingerSuccessorRequestMessage.MSG_CODE,
                 uponFindFingerSuccessorRequestMessage, FindFingerSuccessorRequestMessage.serializer);
         registerMessageHandler(ForwardMessage.MSG_CODE, uponForwardMessage, ForwardMessage.serializer);
+        registerMessageHandler(FindOwnerRequestMessage.MSG_CODE, uponFindOwnerRequestMessage, FindOwnerRequestMessage.serializer);
+
+
     }
 
     @Override
@@ -116,6 +123,45 @@ public class Chord extends GenericProtocol implements INodeListener {
                 PropertiesUtils.getPropertyAsInt(properties, FIX_FINGERS_INIT),
                 PropertiesUtils.getPropertyAsInt(properties, FIX_FINGERS_PERIOD));
     }
+
+    private ProtocolRequestHandler uponFindOwnerRequest = protocolRequest -> {
+        FindOwnerRequest request = (FindOwnerRequest)protocolRequest;
+
+        logger.info(String.format("Process [%d]%s Routing %s with Id=%d", myId, myself, request.getTopic(), calculateId(request.getTopic())));
+        int topicId = calculateId(request.getTopic());
+
+        if (isSuccessor(topicId)) {
+            triggerNotification(new OwnerNotification(request.getTopic(),myself));
+            logger.info(String.format("[%d]%s RouteOk Message: %s", myId, myself, request.getTopic()));
+        } else {
+            Host host = closestPrecedingNode(calculateId(request.getTopic()));
+
+            sendMessage(, host);
+            logger.info(String.format("[%d]%s Sending To %s Message: %s", myId, myself, host, request.getTopic()));
+        }
+    };
+
+    private final ProtocolMessageHandler uponFindOwnerRequestMessage = (protocolMessage) -> {
+        FindOwnerRequestMessage message = (FindOwnerRequestMessage) protocolMessage;
+
+        int topicId = calculateId(message.getTopic());
+        if (isSuccessor(topicId)) {
+            sendMessageSideChannel(new FindSuccessorResponseMessage(myself, fingers), message.getRequesterNode());
+        } else {
+            Host closestPrecedingNode = closestPrecedingNode(topicId);
+            if (!closestPrecedingNode.equals(myself)) {
+                sendMessage(message, closestPrecedingNode);
+            } else {
+                sendMessageSideChannel(new FindOwnerResponseMessage(message.getTopic(),myself), message.getRequesterNode());
+            }
+        }
+    };
+
+    private final ProtocolMessageHandler uponFindOwnerResponseMessage = (protocolMessage) -> {
+        FindOwnerResponseMessage message = (FindOwnerResponseMessage) protocolMessage;
+        triggerNotification(new OwnerNotification(message.getTopic(),message.getRequesterNode()));
+    };
+
 
     private final ProtocolRequestHandler uponRouteRequest = (protocolRequest) -> {
         RouteRequest request = (RouteRequest) protocolRequest;
@@ -184,6 +230,8 @@ public class Chord extends GenericProtocol implements INodeListener {
             }
         }
     };
+
+
 
     private final ProtocolMessageHandler uponFindPredecessorResponseMessage = (protocolMessage) -> {
         FindPredecessorResponseMessage message = (FindPredecessorResponseMessage) protocolMessage;

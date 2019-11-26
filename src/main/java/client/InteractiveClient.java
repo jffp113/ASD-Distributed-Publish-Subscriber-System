@@ -41,7 +41,7 @@ public class InteractiveClient {
                     c.unsubscribe(topic);
                     break;
                 case PUBLISH:
-                    if(input_array.length != 3) {
+                    if(input_array.length < 3) {
                         System.out.println(INVALID_NUMBER_OF_ARGUMENTS);
                         break;
                     }
