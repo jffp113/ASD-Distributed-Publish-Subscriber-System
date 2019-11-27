@@ -14,13 +14,13 @@ public class GiveMeYourReplicasMessage extends ProtocolMessage {
     public static final ISerializer<GiveMeYourReplicasMessage> serializer = new ISerializer<GiveMeYourReplicasMessage>() {
         @Override
         public void serialize(GiveMeYourReplicasMessage PSProtocolMessage, ByteBuf out) {
-            out.writeShort(PSProtocolMessage.topic.length());
+            out.writeInt(PSProtocolMessage.topic.length());
             out.writeBytes(PSProtocolMessage.topic.getBytes());
         }
 
         @Override
         public GiveMeYourReplicasMessage deserialize(ByteBuf in) throws UnknownHostException {
-            short topicSize = in.readShort();
+            int topicSize = in.readInt();
             byte[] topic = new byte[topicSize];
             in.readBytes(topic);
 
@@ -30,7 +30,7 @@ public class GiveMeYourReplicasMessage extends ProtocolMessage {
 
         @Override
         public int serializedSize(GiveMeYourReplicasMessage m) {
-            return m.topic.length();
+            return m.topic.length() + Integer.BYTES;
         }
     };
 

@@ -148,7 +148,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         logger.info("Remote: Finding Owner for " + message.getTopic());
         int topicId = calculateId(message.getTopic());
         if (isSuccessor(topicId)) {
-            sendMessageSideChannel(new FindSuccessorResponseMessage(myself, fingers), message.getRequesterNode());
+            sendMessageSideChannel(new FindOwnerResponseMessage(message.getTopic(),myself), message.getRequesterNode());
         } else {
             Host closestPrecedingNode = closestPrecedingNode(topicId);
             if (!closestPrecedingNode.equals(myself)) {
@@ -388,21 +388,35 @@ public class Chord extends GenericProtocol implements INodeListener {
         return (int) ((myId + Math.pow(2, fingerIndex)) % k);
     }
 
+//    private boolean isIdBetween(int id, int start, int end) {
+//        int minLimit = start;
+//        int maxLimit = end;
+//
+//        if (minLimit > maxLimit) {
+//            int amountToMaxLimit = Math.abs(k - id);
+//            if (amountToMaxLimit < id) {
+//                maxLimit = k;
+//            } else {
+//                minLimit = -1;
+//            }
+//        }
+//
+//        return id == end || id > minLimit && id <= maxLimit;
+//    }
+
     private boolean isIdBetween(int id, int start, int end) {
-        int minLimit = start;
-        int maxLimit = end;
 
-        if (minLimit > maxLimit) {
-            int amountToMaxLimit = Math.abs(k - id);
-            if (amountToMaxLimit < id) {
-                maxLimit = k;
-            } else {
-                minLimit = -1;
-            }
+        while(true){
+            if(id == start)
+                return false;
+            else if(id == end)
+                return true;
+
+            id = (id + 1)%k;
         }
-
-        return id == end || id > minLimit && id <= maxLimit;
     }
+
+
 
     private void changeSuccessor(Host newSuccessor) {
         int successorId = calculateId(newSuccessor.toString());

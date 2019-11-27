@@ -101,7 +101,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
 
         if(notification.getPaxosInstance() == paxosInstaces + 1) {
-
+            paxosInstaces++;
             String topic = notification.getOperation().getTopic();
             for(String message: notification.getOperation().getMessages()){
                 logger.info("Scribbing " + message);
@@ -153,12 +153,14 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     }
     private Random r;
     private final ProtocolMessageHandler uponTakeMyReplicasMessage = protocolMessage -> {
+        logger.info(myself + "upon take my replicas");
         TakeMyReplicasMessage m = (TakeMyReplicasMessage) protocolMessage;
         String topic = m.getTopic();
         Host replica = pickRandomFromMembership(m.getReplicas());
         List<String> toOrder = this.waiting.remove(topic);
 
         if (toOrder != null) {
+            logger.info(myself + " Sending request for ordering to" + replica);
             sendMessageSideChannel(new RequestForOrderMessage(topic, toOrder), replica);
         }
 
@@ -166,6 +168,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
     private final ProtocolMessageHandler uponGiveMeYourReplicasMessage = protocolMessage -> {
         GiveMeYourReplicasMessage m = (GiveMeYourReplicasMessage) protocolMessage;
+        logger.info(myself+" Replicas requst from " + m.getFrom() + "to topic :" + m.getTopic());
         sendMessageSideChannel(new TakeMyReplicasMessage(m.getTopic(), membership), m.getFrom());
     };
 
@@ -213,6 +216,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     };
     private ProtocolNotificationHandler uponOwnerNotification = protocolNotification -> {
         OwnerNotification notification = (OwnerNotification) protocolNotification;
+        logger.info("Owner Notification  Trigger for topic :" + notification.getTopic());
         sendMessageSideChannel(new GiveMeYourReplicasMessage(notification.getTopic()),
                 notification.getOwner());
     };
@@ -246,17 +250,15 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         String topic = deliver.getTopic();
 
         int seq = deliver.getSeq();
-        if (!lastMessagesDelivered.containsKey(topic)) {
+
+        int currentSeq = lastMessagesDelivered.getOrDefault(topic,new Integer(0));
+        currentSeq++;
+        if (currentSeq == seq) {
             if (this.topics.containsKey(topic)) {
                 triggerNotification(new PBDeliver(deliver.getMessage(), topic));
             }
             lastMessagesDelivered.put(topic, seq);
-        } else {
-            int lastSeqSeen = lastMessagesDelivered.get(topic);
-            // Missing messages
-            if (lastSeqSeen + 1 != seq) {
-                //deliver.getTopicOwner();
-            }
+
         }
 
     };

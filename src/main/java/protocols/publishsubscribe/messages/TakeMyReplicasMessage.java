@@ -22,7 +22,7 @@ public class TakeMyReplicasMessage extends ProtocolMessage {
             for(Host h : m.replicas){
                 h.serialize(out);
             }
-            out.writeShort(m.topic.length());
+            out.writeInt(m.topic.length());
             out.writeBytes(m.topic.getBytes());
         }
 
@@ -35,7 +35,7 @@ public class TakeMyReplicasMessage extends ProtocolMessage {
                 replicas.add(Host.deserialize(in));
             }
 
-            short topicSize = in.readShort();
+            int topicSize = in.readInt();
             byte[] topic = new byte[topicSize];
             in.readBytes(topic);
 
@@ -44,7 +44,7 @@ public class TakeMyReplicasMessage extends ProtocolMessage {
 
         @Override
         public int serializedSize(TakeMyReplicasMessage m) {
-            return Integer.BYTES + m.replicas.size() * 6 + m.topic.length();
+            return Integer.BYTES*2 + m.replicas.size() * 6 + m.topic.length();
         }
     };
 
