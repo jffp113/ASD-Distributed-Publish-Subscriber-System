@@ -7,31 +7,31 @@ import protocols.multipaxos.OrderOperation;
 
 import java.io.Serializable;
 
-public class AcceptOperationMessage extends ProtocolMessage implements Serializable {
+public class AcceptOkMessage extends ProtocolMessage implements Serializable {
 
-    public final static short MSG_CODE = 25;
+    public final static short MSG_CODE = 69;
 
-    public static final ISerializer<AcceptOperationMessage> serializer = new ISerializer<AcceptOperationMessage>() {
+    public static final ISerializer<AcceptOkMessage> serializer = new ISerializer<AcceptOkMessage>() {
         @Override
-        public void serialize(AcceptOperationMessage m, ByteBuf out) {
+        public void serialize(AcceptOkMessage m, ByteBuf out) {
             out.writeInt(m.instance);
             m.operation.serialize(out);
         }
 
         @Override
-        public AcceptOperationMessage deserialize(ByteBuf in) {
-            return new AcceptOperationMessage(in.readInt(), OrderOperation.deserialize(in));
+        public AcceptOkMessage deserialize(ByteBuf in) {
+            return new AcceptOkMessage(in.readInt(), OrderOperation.deserialize(in));
         }
 
         @Override
-        public int serializedSize(AcceptOperationMessage m) {
+        public int serializedSize(AcceptOkMessage m) {
             return Integer.BYTES + m.operation.serializedSize();
         }
     };
     private int instance;
     private OrderOperation operation;
 
-    public AcceptOperationMessage(int instance, OrderOperation operation) {
+    public AcceptOkMessage(int instance, OrderOperation operation) {
         super(MSG_CODE);
         this.instance = instance;
         this.operation = operation;
@@ -43,9 +43,5 @@ public class AcceptOperationMessage extends ProtocolMessage implements Serializa
 
     public OrderOperation getOperation() {
         return operation;
-    }
-
-    public AcceptOkMessage acceptOk(){
-        return new AcceptOkMessage(instance,operation);
     }
 }

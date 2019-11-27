@@ -39,27 +39,74 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     private int prepareOks;
     private boolean prepareIssued;
     private int paxosInstance;
+
+
+    public MultiPaxos(INetwork net) throws HandlerRegistrationException {
+        super(PROTOCOL_NAME, PROTOCOL_ID, net);
+
+        registerRequestHandler(StartRequest.REQUEST_ID, uponStartRequest);
+
+        registerMessageHandler(AddReplicaMessage.MSG_CODE, uponAddReplicaMessage, AddReplicaMessage.serializer);
+        registerMessageHandler(PrepareMessage.MSG_CODE, uponPrepareMessage, PrepareMessage.serializer);
+        registerMessageHandler(PrepareOk.MSG_CODE, uponPrepareOk, PrepareOk.serializer);
+        registerMessageHandler(ForwardProposeMessage.MSG_CODE, uponForwardProposeMessage, ForwardProposeMessage.serializer);
+        registerMessageHandler(AcceptOperationMessage.MSG_CODE, uponAcceptOperation, AcceptOperationMessage.serializer);
+        registerMessageHandler(AcceptOkMessage.MSG_CODE, uponAcceptOkOperation, AcceptOkMessage.serializer);
+        registerTimerHandler(PrepareTimer.TIMER_CODE, uponPrepareTimer);
+        registerRequestHandler(ProposeRequest.REQUEST_ID, uponProposeRequest);
+
+    }
+
+    @Override
+    public void init(Properties properties) {
+        this.leader = null;
+        this.leaderSN = 0;
+        this.replicaSet = new HashSet<>();
+        this.pendingOperations = new HashMap<>();
+        this.mySequenceNumber = 0;
+        this.prepareTimout = PropertiesUtils.getPropertyAsInt(properties, PREPARE_TIMEOUT);
+        this.prepareOks = 0;
+        this.prepareIssued = false;
+        this.paxosInstance = 0;
+    }
+
+    //Paxos instace gravar a operação
+    //Esperar pela maioria
+    //ClIENTE OK
+    private Map<Integer,OrderOperation> operationMap;
+
     private final ProtocolMessageHandler uponAcceptOperation = (protocolMessage) -> {
         AcceptOperationMessage message = (AcceptOperationMessage) protocolMessage;
-        OrderOperation operation = message.getOperation();
-        int instance = message.getInstance();
-
-        if (instance == this.paxosInstance + 1) {
-            this.paxosInstance = instance;
-            //  this.acceptedOperations.put(KEY, operation);
-
-            triggerNotification(new DecideNotification(operation));
-        } else {
-
-        }
-
+        operationMap.put(message.getInstance(),message.getOperation());
+        sendMessageToReplicaSet(message.acceptOk());
     };
+
+    private Map<OrderOperation,Integer> operationOkAcks;
+
+    private final ProtocolMessageHandler uponAcceptOkOperation = (protocolMessage) -> {
+        AcceptOkMessage message = (AcceptOkMessage) protocolMessage;
+        int instance = message.getInstance();
+        OrderOperation operation = message.getOperation();
+        Integer acks = operationOkAcks.getOrDefault(operation,new Integer(0))+1;
+        operationOkAcks.put(operation,acks);
+
+        if(hasMajority(acks)){
+            if (instance > this.paxosInstance) {
+                this.paxosInstance = instance;
+//                operationMap.remove(operation); TODO
+            }
+            triggerNotification(new DecideNotification(operation,instance));
+        }
+    };
+
     private Set<Host> replicaSet;
     private final ProtocolRequestHandler uponProposeRequest = (protocolRequest) -> {
         ProposeRequest request = (ProposeRequest) protocolRequest;
         OrderOperation operation = request.getOperation();
         processPropose(operation);
     };
+
+
     private final ProtocolMessageHandler uponForwardProposeMessage = (protocolMessage) -> {
         ForwardProposeMessage message = (ForwardProposeMessage) protocolMessage;
         OrderOperation operation = message.getOperation();
@@ -96,36 +143,6 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
     };
     private Map<Integer, OrderOperation> pendingOperations;
-
-    public MultiPaxos(INetwork net) throws HandlerRegistrationException {
-        super(PROTOCOL_NAME, PROTOCOL_ID, net);
-
-        registerRequestHandler(StartRequest.REQUEST_ID, uponStartRequest);
-
-        registerMessageHandler(AddReplicaMessage.MSG_CODE, uponAddReplicaMessage, AddReplicaMessage.serializer);
-        registerMessageHandler(PrepareMessage.MSG_CODE, uponPrepareMessage, PrepareMessage.serializer);
-        registerMessageHandler(PrepareOk.MSG_CODE, uponPrepareOk, PrepareOk.serializer);
-        registerMessageHandler(ForwardProposeMessage.MSG_CODE, uponForwardProposeMessage, ForwardProposeMessage.serializer);
-        registerMessageHandler(AcceptOperationMessage.MSG_CODE, uponAcceptOperation, AcceptOperationMessage.serializer);
-        registerTimerHandler(PrepareTimer.TIMER_CODE, uponPrepareTimer);
-        registerRequestHandler(ProposeRequest.REQUEST_ID, uponProposeRequest);
-
-    }
-
-    @Override
-    public void init(Properties properties) {
-        this.leader = null;
-        this.leaderSN = 0;
-        this.replicaSet = new HashSet<>();
-        this.pendingOperations = new HashMap<>();
-        this.mySequenceNumber = 0;
-        //this.acceptedOperations = new PersistentMap<>(myself.toString());
-        //this.operationsToExecute = new LinkedList<>();
-        this.prepareTimout = PropertiesUtils.getPropertyAsInt(properties, PREPARE_TIMEOUT);
-        this.prepareOks = 0;
-        this.prepareIssued = false;
-        this.paxosInstance = 0;
-    }
 
     private void processPropose(OrderOperation operation) {
         if (imLeader()) {
@@ -256,7 +273,6 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
                 return false;
             }
         }
-
         return true;
     }
 
