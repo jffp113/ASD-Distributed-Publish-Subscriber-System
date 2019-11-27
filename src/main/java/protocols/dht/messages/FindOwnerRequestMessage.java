@@ -44,7 +44,7 @@ public class FindOwnerRequestMessage extends ProtocolMessage {
 
         @Override
         public int serializedSize(FindOwnerRequestMessage m) {
-            return Integer.BYTES*(m.getTopic().length() + 1) + m.requesterNode.serializedSize();
+            return Integer.BYTES + m.getTopic().length() + m.requesterNode.serializedSize();
         }
     };
 }

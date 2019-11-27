@@ -56,7 +56,7 @@ public class Client implements INotificationConsumer {
         Scribe scribe = new Scribe(net);
         scribe.init(properties);
         babel.registerProtocol(scribe);
-        scribe.subscribeNotification(MessageDeliver.NOTIFICATION_ID, pubSub);
+
     }
 
     /**

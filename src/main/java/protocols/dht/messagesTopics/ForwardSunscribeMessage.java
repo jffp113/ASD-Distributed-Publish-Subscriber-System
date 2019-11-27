@@ -11,7 +11,7 @@ import java.nio.charset.Charset;
 
 public class ForwardSunscribeMessage extends ProtocolMessage {
 
-    public static short MSG_CODE = 10341;
+    public static short MSG_CODE = 1011;
     private Host host;
     private String topic;
     private boolean isSubscribe;

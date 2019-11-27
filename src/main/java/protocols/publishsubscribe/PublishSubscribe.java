@@ -5,7 +5,6 @@ import babel.handlers.ProtocolMessageHandler;
 import babel.handlers.ProtocolNotificationHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.notification.INotificationConsumer;
-import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
 import babel.requestreply.ProtocolRequest;
 import network.Host;
@@ -15,10 +14,14 @@ import org.apache.logging.log4j.Logger;
 import persistence.PersistentMap;
 import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
+import protocols.dissemination.Scribe;
+import protocols.dissemination.requests.DisseminatePubRequest;
 import protocols.dissemination.requests.DisseminateSubRequest;
 import protocols.multipaxos.MultiPaxos;
+import protocols.multipaxos.OrderOperation;
 import protocols.multipaxos.messages.RequestForOrderMessage;
 import protocols.multipaxos.notifications.DecideNotification;
+import protocols.multipaxos.requests.ProposeRequest;
 import protocols.publishsubscribe.messages.GiveMeYourReplicasMessage;
 import protocols.publishsubscribe.messages.TakeMyReplicasMessage;
 import protocols.publishsubscribe.notifications.OwnerNotification;
@@ -56,6 +59,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         // Notifications produced
         registerNotification(PBDeliver.NOTIFICATION_ID, PBDeliver.NOTIFICATION_NAME);
 
+        registerNotificationHandler(Scribe.PROTOCOL_ID, MessageDeliver.NOTIFICATION_ID, deliverNotification);
         // Requests
         registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
         registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
@@ -74,6 +78,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         this.waiting = new HashMap<>(64);
         this.unordered = new HashMap<>( 64);
         this.membership = new LinkedList<>();
+        this.membership.add(myself);
         this.r = new Random();
         this.isReplica = PropertiesUtils.getPropertyAsBool(properties, "replica");
         initMultiPaxos(properties);
@@ -83,6 +88,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     private TreeSet<DecideNotification> message = new TreeSet<>();
     private int paxosInstaces = 0;
     private final ProtocolNotificationHandler uponOrderDecideNotification = (protocolNotification) -> {
+        logger.info("Decide Notification");
         DecideNotification notification = (DecideNotification)protocolNotification;
         message.add(notification);
         
@@ -94,10 +100,11 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         DecideNotification notification = message.first();
 
 
-        //if(notification.getPaxosInstance() == paxosInstaces) {
-
-            /*String topic = notification.getOperation().getTopic();
+        if(notification.getPaxosInstance() == paxosInstaces + 1) {
+            paxosInstaces++;
+            String topic = notification.getOperation().getTopic();
             for(String message: notification.getOperation().getMessages()){
+                logger.info("Scribbing " + message);
                 int seq = messages.put(topic,message);
 
                 if(!isReplica){
@@ -107,9 +114,9 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
                     disseminatePubRequest.setDestination(Scribe.PROTOCOL_ID);
                     sendRequestToProtocol(disseminatePubRequest);
                 }
-            }*/
+            }
             message.remove(notification);
-       // }
+        }
     }
 
 
@@ -146,12 +153,14 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     }
     private Random r;
     private final ProtocolMessageHandler uponTakeMyReplicasMessage = protocolMessage -> {
+        logger.info(myself + "upon take my replicas");
         TakeMyReplicasMessage m = (TakeMyReplicasMessage) protocolMessage;
         String topic = m.getTopic();
         Host replica = pickRandomFromMembership(m.getReplicas());
         List<String> toOrder = this.waiting.remove(topic);
 
         if (toOrder != null) {
+            logger.info(myself + " Sending request for ordering to" + replica);
             sendMessageSideChannel(new RequestForOrderMessage(topic, toOrder), replica);
         }
 
@@ -159,6 +168,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
     private final ProtocolMessageHandler uponGiveMeYourReplicasMessage = protocolMessage -> {
         GiveMeYourReplicasMessage m = (GiveMeYourReplicasMessage) protocolMessage;
+        logger.info(myself+" Replicas requst from " + m.getFrom() + "to topic :" + m.getTopic());
         sendMessageSideChannel(new TakeMyReplicasMessage(m.getTopic(), membership), m.getFrom());
     };
 
@@ -182,18 +192,22 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         }
 
         DisseminateSubRequest disseminateSubRequest = new DisseminateSubRequest(topic, isSubscribe);
-        sendRequestDecider(disseminateSubRequest);
+        sendRequestDecider(disseminateSubRequest,Scribe.PROTOCOL_ID);
     };
     /**
      * Sends a publish requests to the underlying protocol.
      */
     private ProtocolRequestHandler uponPublishRequest = (publishRequest) -> {
+
         PublishRequest pRequest = (PublishRequest) publishRequest;
-        FindOwnerRequest request = new FindOwnerRequest(pRequest.getMessage());
+        FindOwnerRequest request = new FindOwnerRequest(pRequest.getTopic());
+
+
+        logger.info("Publishing request " + pRequest.getMessage());
 
         List<String> message = waiting.get(pRequest.getTopic());
         if (message == null) {
-            sendRequestDecider(request);
+            sendRequestDecider(request,Chord.PROTOCOL_ID);
             message = new LinkedList<>();
             waiting.put(pRequest.getTopic(), message);
         }
@@ -202,16 +216,18 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     };
     private ProtocolNotificationHandler uponOwnerNotification = protocolNotification -> {
         OwnerNotification notification = (OwnerNotification) protocolNotification;
+        logger.info("Owner Notification  Trigger for topic :" + notification.getTopic());
         sendMessageSideChannel(new GiveMeYourReplicasMessage(notification.getTopic()),
                 notification.getOwner());
     };
 
 
     private void requestOrdering(String topic, List<String> messages) {
-        /*Operation orderOp = new Operation(topic, messages);
+        logger.info("RequestOrdering " + messages + myself);
+        OrderOperation orderOp = new OrderOperation(topic, messages);
         ProposeRequest request = new ProposeRequest(orderOp);
         request.setDestination(MultiPaxos.PROTOCOL_ID);
-        sendRequestToProtocol(request);*/
+        sendRequestToProtocol(request);
     }
 
     private Host pickRandomFromMembership(List<Host> membership) {
@@ -228,29 +244,28 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
      *
      * @param pNotification to be delivered.
      */
-    public void deliverNotification(ProtocolNotification pNotification) {
+    public ProtocolNotificationHandler deliverNotification = (pNotification) ->{
+        logger.info("Delivering notification");
         MessageDeliver deliver = (MessageDeliver) pNotification;
         String topic = deliver.getTopic();
 
         int seq = deliver.getSeq();
-        if (!lastMessagesDelivered.containsKey(topic)) {
+
+        int currentSeq = lastMessagesDelivered.getOrDefault(topic,new Integer(0));
+        currentSeq++;
+        if (currentSeq == seq) {
             if (this.topics.containsKey(topic)) {
                 triggerNotification(new PBDeliver(deliver.getMessage(), topic));
             }
             lastMessagesDelivered.put(topic, seq);
-        } else {
-            int lastSeqSeen = lastMessagesDelivered.get(topic);
-            // Missing messages
-            if (lastSeqSeen + 1 != seq) {
-                //deliver.getTopicOwner();
-            }
+
         }
 
-    }
+    };
 
-    private void sendRequestDecider(ProtocolRequest request) {
-        logger.info(String.format("%s - Sending message by Scribe", myself));
-        request.setDestination(Chord.PROTOCOL_ID);
+    private void sendRequestDecider(ProtocolRequest request,short PROTOCOL_ID) {
+        logger.info(String.format("%s - Sending message", myself));
+        request.setDestination(PROTOCOL_ID);
 
         sendRequestToProtocol(request);
     }

@@ -8,7 +8,7 @@ import network.ISerializer;
 import java.net.UnknownHostException;
 
 public class JoinMessage extends ProtocolMessage {
-    public final static short MSG_CODE = 103;
+    public final static short MSG_CODE = 1303;
     private final Host node;
     private final boolean maxPriority;
 
