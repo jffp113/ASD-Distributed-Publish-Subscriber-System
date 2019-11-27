@@ -1,8 +1,12 @@
+import babel.Babel;
+import network.INetwork;
 import org.junit.Test;
 import persistence.PersistentMap;
+import protocols.multipaxos.MultiPaxos;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 
 public class EmptyTest {
@@ -32,4 +36,15 @@ public class EmptyTest {
         System.out.println(list);
     }
 
+    public static void main(String[] args) throws Exception {
+        Babel babel = Babel.getInstance();
+        Properties properties = babel.loadConfig("src/network_config.properties", args);
+        INetwork net = babel.getNetworkInstance();
+
+        MultiPaxos paxos = new MultiPaxos(net);
+        paxos.init(properties);
+        babel.registerProtocol(paxos);
+
+        babel.start();
+    }
 }

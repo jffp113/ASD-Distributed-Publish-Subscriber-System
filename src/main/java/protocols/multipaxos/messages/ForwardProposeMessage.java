@@ -3,7 +3,9 @@ package protocols.multipaxos.messages;
 import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
 import network.ISerializer;
-import protocols.multipaxos.OrderOperation;
+import protocols.multipaxos.Operation;
+
+import java.net.UnknownHostException;
 
 public class ForwardProposeMessage extends ProtocolMessage {
     public final static short MSG_CODE = 69;
@@ -14,8 +16,8 @@ public class ForwardProposeMessage extends ProtocolMessage {
         }
 
         @Override
-        public ForwardProposeMessage deserialize(ByteBuf in) {
-            return new ForwardProposeMessage(OrderOperation.deserialize(in));
+        public ForwardProposeMessage deserialize(ByteBuf in) throws UnknownHostException {
+            return new ForwardProposeMessage(Operation.deserialize(in));
         }
 
         @Override
@@ -23,14 +25,14 @@ public class ForwardProposeMessage extends ProtocolMessage {
             return m.operation.serializedSize();
         }
     };
-    private OrderOperation operation;
+    private Operation operation;
 
-    public ForwardProposeMessage(OrderOperation operation) {
+    public ForwardProposeMessage(Operation operation) {
         super(MSG_CODE);
         this.operation = operation;
     }
 
-    public OrderOperation getOperation() {
+    public Operation getOperation() {
         return operation;
     }
 }

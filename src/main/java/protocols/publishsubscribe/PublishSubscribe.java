@@ -15,14 +15,10 @@ import org.apache.logging.log4j.Logger;
 import persistence.PersistentMap;
 import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
-import protocols.dissemination.Scribe;
-import protocols.dissemination.requests.DisseminatePubRequest;
 import protocols.dissemination.requests.DisseminateSubRequest;
 import protocols.multipaxos.MultiPaxos;
-import protocols.multipaxos.OrderOperation;
 import protocols.multipaxos.messages.RequestForOrderMessage;
 import protocols.multipaxos.notifications.DecideNotification;
-import protocols.multipaxos.requests.ProposeRequest;
 import protocols.publishsubscribe.messages.GiveMeYourReplicasMessage;
 import protocols.publishsubscribe.messages.TakeMyReplicasMessage;
 import protocols.publishsubscribe.notifications.OwnerNotification;
@@ -98,9 +94,9 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         DecideNotification notification = message.first();
 
 
-        if(notification.getPaxosInstance() == paxosInstaces) {
+        //if(notification.getPaxosInstance() == paxosInstaces) {
 
-            String topic = notification.getOperation().getTopic();
+            /*String topic = notification.getOperation().getTopic();
             for(String message: notification.getOperation().getMessages()){
                 int seq = messages.put(topic,message);
 
@@ -111,9 +107,9 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
                     disseminatePubRequest.setDestination(Scribe.PROTOCOL_ID);
                     sendRequestToProtocol(disseminatePubRequest);
                 }
-            }
+            }*/
             message.remove(notification);
-        }
+       // }
     }
 
 
@@ -212,10 +208,10 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
 
     private void requestOrdering(String topic, List<String> messages) {
-        OrderOperation orderOp = new OrderOperation(topic, messages);
+        /*Operation orderOp = new Operation(topic, messages);
         ProposeRequest request = new ProposeRequest(orderOp);
         request.setDestination(MultiPaxos.PROTOCOL_ID);
-        sendRequestToProtocol(request);
+        sendRequestToProtocol(request);*/
     }
 
     private Host pickRandomFromMembership(List<Host> membership) {

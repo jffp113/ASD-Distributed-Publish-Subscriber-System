@@ -14,7 +14,7 @@ public class AddReplicaMessage extends ProtocolMessage implements Serializable {
     public static final ISerializer<AddReplicaMessage> serializer = new ISerializer<AddReplicaMessage>() {
         @Override
         public void serialize(AddReplicaMessage m, ByteBuf out) {
-            m.requester.serialize(out);
+            m.replica.serialize(out);
         }
 
         @Override
@@ -24,21 +24,17 @@ public class AddReplicaMessage extends ProtocolMessage implements Serializable {
 
         @Override
         public int serializedSize(AddReplicaMessage m) {
-            return m.requester.serializedSize();
+            return m.replica.serializedSize();
         }
     };
-    private Host requester;
+    private Host replica;
 
-    public AddReplicaMessage(Host requester) {
+    public AddReplicaMessage(Host replica) {
         super(MSG_CODE);
-        this.requester = requester;
+        this.replica = replica;
     }
 
-    public Host getRequester() {
-        return requester;
-    }
-
-    public void setRequester(Host requester) {
-        this.requester = requester;
+    public Host getReplica() {
+        return replica;
     }
 }

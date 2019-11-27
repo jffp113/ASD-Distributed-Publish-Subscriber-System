@@ -3,9 +3,10 @@ package protocols.multipaxos.messages;
 import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
 import network.ISerializer;
-import protocols.multipaxos.OrderOperation;
+import protocols.multipaxos.Operation;
 
 import java.io.Serializable;
+import java.net.UnknownHostException;
 
 public class OperationMessage extends ProtocolMessage implements Serializable {
 
@@ -18,8 +19,8 @@ public class OperationMessage extends ProtocolMessage implements Serializable {
         }
 
         @Override
-        public OperationMessage deserialize(ByteBuf in) {
-            return new OperationMessage(OrderOperation.deserialize(in));
+        public OperationMessage deserialize(ByteBuf in) throws UnknownHostException {
+            return new OperationMessage(Operation.deserialize(in));
         }
 
         @Override
@@ -32,14 +33,14 @@ public class OperationMessage extends ProtocolMessage implements Serializable {
     public OperationMessage() {
         super(MSG_CODE);
     }
-    private OrderOperation operation;
+    private Operation operation;
 
-    public OperationMessage(OrderOperation operation) {
+    public OperationMessage(Operation operation) {
         super(MSG_CODE);
         this.operation = operation;
     }
 
-    public OrderOperation getOperation() {
+    public Operation getOperation() {
         return operation;
     }
 }

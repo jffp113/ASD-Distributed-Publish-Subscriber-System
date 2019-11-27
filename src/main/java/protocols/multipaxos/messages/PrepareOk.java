@@ -3,49 +3,40 @@ package protocols.multipaxos.messages;
 import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
 import network.ISerializer;
-import protocols.multipaxos.OrderOperation;
 
 import java.io.Serializable;
+import java.net.UnknownHostException;
 
 public class PrepareOk extends ProtocolMessage implements Serializable {
 
     public final static short MSG_CODE = 25;
 
-    public PrepareOk() {
+    public PrepareOk(int sequenceNumber) {
         super(MSG_CODE);
+        this.sequenceNumber = sequenceNumber;
     }
 
     public static final ISerializer<PrepareOk> serializer = new ISerializer<PrepareOk>() {
         @Override
         public void serialize(PrepareOk m, ByteBuf out) {
             out.writeInt(m.sequenceNumber);
-            m.operation.serialize(out);
         }
 
         @Override
-        public PrepareOk deserialize(ByteBuf in) {
-            return new PrepareOk(in.readInt(), OrderOperation.deserialize(in));
+        public PrepareOk deserialize(ByteBuf in) throws UnknownHostException {
+            return new PrepareOk(in.readInt());
         }
 
         @Override
         public int serializedSize(PrepareOk m) {
-            return Integer.BYTES + m.operation.serializedSize();
+            return Integer.BYTES;
         }
     };
-    private int sequenceNumber;
-    private OrderOperation operation;
 
-    public PrepareOk(int sequenceNumber, OrderOperation operation) {
-        super(MSG_CODE);
-        this.sequenceNumber = sequenceNumber;
-        this.operation = operation;
-    }
+    private int sequenceNumber;
 
     public int getSequenceNumber() {
         return sequenceNumber;
     }
 
-    public OrderOperation getOperation() {
-        return operation;
-    }
 }

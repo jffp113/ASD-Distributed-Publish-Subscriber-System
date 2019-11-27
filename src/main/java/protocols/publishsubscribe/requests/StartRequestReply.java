@@ -7,7 +7,7 @@ import java.util.Set;
 
 public class StartRequestReply extends ProtocolReply {
 
-    public static final short REPLY_ID = 5666;
+    public static final short REPLY_ID = StartRequest.REQUEST_ID;
 
     private Set<Host> membership;
     private Host leader;
