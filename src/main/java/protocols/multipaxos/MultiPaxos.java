@@ -61,6 +61,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         registerRequestHandler(StartRequest.REQUEST_ID, uponStartRequest);
         registerTimerHandler(DebugTimer.TimerCode, uponDebugTimer);
         registerNotification(DecideNotification.NOTIFICATION_ID, DecideNotification.NOTIFICATION_NAME);
+        registerNotification(StartRequestNotification.NOTIFICATION_ID,StartRequestNotification.NOTIFICATION_NAME);
 
         registerMessageHandler(AddReplicaMessage.MSG_CODE, uponAddReplicaMessage, AddReplicaMessage.serializer);
         registerMessageHandler(PrepareMessage.MSG_CODE, uponPrepareMessage, PrepareMessage.serializer);
