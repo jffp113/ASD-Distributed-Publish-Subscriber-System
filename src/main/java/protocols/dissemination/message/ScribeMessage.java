@@ -6,7 +6,6 @@ import network.Host;
 import network.ISerializer;
 import protocols.dissemination.MessageType;
 
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 
 public class ScribeMessage extends ProtocolMessage {
@@ -17,17 +16,19 @@ public class ScribeMessage extends ProtocolMessage {
     private String message;
     private MessageType messageType;
     private Host host;
+    private int seq;
 
     private ScribeMessage() {
         super(MSG_CODE);
     }
 
-    public ScribeMessage(String topic, String message, Host host) {
+    public ScribeMessage(String topic, String message, Host host, int seq) {
         super(MSG_CODE);
         this.topic = topic;
         this.message = message;
         this.host=host;
         this.messageType = MessageType.PUBLICATION;
+        this.seq = seq;
 
     }
 
@@ -58,6 +59,7 @@ public class ScribeMessage extends ProtocolMessage {
             out.writeInt(m.message.length());
             out.writeBytes(m.message.getBytes());
             m.host.serialize(out);
+            out.writeInt(m.seq);
         }
 
         @Override
@@ -70,12 +72,12 @@ public class ScribeMessage extends ProtocolMessage {
             in.readBytes(messageBytes);
             String message = new String(messageBytes);
 
-            return new ScribeMessage(topic, message,Host.deserialize(in));
+            return new ScribeMessage(topic, message,Host.deserialize(in), in.readInt());
         }
 
         @Override
         public int serializedSize(ScribeMessage m) {
-            return 2 * Integer.BYTES + m.topic.length() + m.message.length()+m.host.serializedSize();
+            return 3 * Integer.BYTES + m.topic.length() + m.message.length()+m.host.serializedSize();
         }
     };
 
@@ -163,5 +165,9 @@ public class ScribeMessage extends ProtocolMessage {
     @Override
     public String toString() {
         return "[" + topic + "," + message + "," + messageType + "]";
+    }
+
+    public int getSeq() {
+        return seq;
     }
 }

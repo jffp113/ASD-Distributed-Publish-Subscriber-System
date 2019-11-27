@@ -11,7 +11,7 @@ import java.util.List;
 
 public class TakeMyReplicasMessage extends ProtocolMessage {
 
-    public final static short MSG_CODE = 102;
+    public final static short MSG_CODE = 103;
     private String topic;
     private List<Host> replicas;
 

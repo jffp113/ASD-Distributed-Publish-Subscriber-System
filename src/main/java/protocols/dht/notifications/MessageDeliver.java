@@ -14,11 +14,13 @@ public class MessageDeliver extends ProtocolNotification {
 
     private String message;
     private String topic;
+    private int seq;
 
-    public MessageDeliver(String topic, String message) {
+    public MessageDeliver(String topic, String message, int seq) {
         super(MessageDeliver.NOTIFICATION_ID, NOTIFICATION_NAME);
         this.message = message;
         this.topic = topic;
+        this.seq = seq;
     }
 
     public MessageDeliver(byte[] payload) {
@@ -45,4 +47,7 @@ public class MessageDeliver extends ProtocolNotification {
         return topic;
     }
 
+    public int getSeq() {
+        return seq;
+    }
 }

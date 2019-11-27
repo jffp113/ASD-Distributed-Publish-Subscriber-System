@@ -1,11 +1,10 @@
 package protocols.publishsubscribe.requests;
 
 import babel.requestreply.ProtocolRequest;
-import protocols.dissemination.message.ScribeMessage;
 
 public class FindOwnerRequest extends ProtocolRequest {
 
-    public static final short REQUEST_ID = 22254;
+    public static final short REQUEST_ID = 22255;
 
     private final String topic;
 

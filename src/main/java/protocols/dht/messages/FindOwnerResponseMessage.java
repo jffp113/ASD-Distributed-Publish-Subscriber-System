@@ -8,7 +8,7 @@ import network.ISerializer;
 import java.net.UnknownHostException;
 
 public class FindOwnerResponseMessage extends ProtocolMessage {
-    public static short MSG_CODE = 10340;
+    public static short MSG_CODE = 10341;
 
     private String topic;
     private Host requesterNode;

@@ -124,13 +124,13 @@ public class Scribe extends GenericProtocol implements INotificationConsumer, IN
         String messageText = request.getMessage();
 
         if (subscribedTo(topic)) {
-            triggerNotification(new MessageDeliver(topic, messageText));
+            triggerNotification(new MessageDeliver(topic, messageText, request.getSeq()));
         }
 
         Set<HostSubscription> downTopicBranch = downTopicTree.get(topic);
         Set<HostSubscription> upTopicBranch = upTopicTree.get(topic);
 
-        ScribeMessage message = new ScribeMessage(topic, messageText, myself);
+        ScribeMessage message = new ScribeMessage(topic, messageText, myself, request.getSeq());
         if (noBranches(downTopicBranch, upTopicBranch)) {
             addToDownTopicTree(topic, myself);
             requestRoute(message);
@@ -247,12 +247,12 @@ public class Scribe extends GenericProtocol implements INotificationConsumer, IN
         Host host = scribeMessage.getHost();
 
         if (subscribedTo(topic)) {
-            triggerNotification(new MessageDeliver(topic, messageText));
+            triggerNotification(new MessageDeliver(topic, messageText, scribeMessage.getSeq()));
         }
 
         Set<HostSubscription> downTopicBranch = downTopicTree.get(topic);
         Set<HostSubscription> upTopicBranch = upTopicTree.get(topic);
-        ScribeMessage message = new ScribeMessage(topic, messageText, myself);
+        ScribeMessage message = new ScribeMessage(topic, messageText, myself, scribeMessage.getSeq());
 
         if (noBranches(downTopicBranch, upTopicBranch)) {
             addToDownTopicTree(topic, myself);

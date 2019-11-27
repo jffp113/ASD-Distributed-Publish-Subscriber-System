@@ -88,6 +88,7 @@ public class Chord extends GenericProtocol implements INodeListener {
                 uponFindFingerSuccessorRequestMessage, FindFingerSuccessorRequestMessage.serializer);
         registerMessageHandler(ForwardMessage.MSG_CODE, uponForwardMessage, ForwardMessage.serializer);
         registerMessageHandler(FindOwnerRequestMessage.MSG_CODE, uponFindOwnerRequestMessage, FindOwnerRequestMessage.serializer);
+        registerMessageHandler(FindOwnerResponseMessage.MSG_CODE, uponFindOwnerResponseMessage, FindOwnerResponseMessage.serializer);
 
 
     }
@@ -136,7 +137,7 @@ public class Chord extends GenericProtocol implements INodeListener {
         } else {
             Host host = closestPrecedingNode(calculateId(request.getTopic()));
 
-            //sendMessage(, host);
+            sendMessage(new FindOwnerRequestMessage(request.getTopic(), myself), host);
             logger.info(String.format("[%d]%s Sending To %s Message: %s", myId, myself, host, request.getTopic()));
         }
     };
@@ -188,7 +189,7 @@ public class Chord extends GenericProtocol implements INodeListener {
     };
 
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
-       /* StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder();
         sb.append("--------------------\n");
         sb.append(myself + "->" + myId + "\n");
         sb.append("Predecessor: " + predecessor + " " + (predecessor == null ? -1 : calculateId(predecessor.toString()) + "\n"));
@@ -197,7 +198,7 @@ public class Chord extends GenericProtocol implements INodeListener {
             sb.append(f + "\n");
         }
 
-        logger.info(sb.toString());*/
+        logger.info(sb.toString());
     };
 
     private void join(Host node) {

@@ -20,7 +20,6 @@ import protocols.dissemination.requests.DisseminatePubRequest;
 import protocols.dissemination.requests.DisseminateSubRequest;
 import protocols.multipaxos.MultiPaxos;
 import protocols.multipaxos.OrderOperation;
-import protocols.multipaxos.messages.OperationMessage;
 import protocols.multipaxos.messages.RequestForOrderMessage;
 import protocols.multipaxos.notifications.DecideNotification;
 import protocols.multipaxos.requests.ProposeRequest;
@@ -38,7 +37,6 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
 
-import static com.sun.tools.javadoc.Main.execute;
 
 public class PublishSubscribe extends GenericProtocol implements INotificationConsumer {
     final static Logger logger = LogManager.getLogger(PublishSubscribe.class.getName());
@@ -78,7 +76,8 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         this.topics = new HashMap<>(INITIAL_CAPACITY);
         this.multiPaxosLeader = null;
         this.waiting = new HashMap<>(64);
-        this.unordered = new HashMap<>(64);
+        this.unordered = new HashMap<>( 64);
+        this.membership = new LinkedList<>();
         this.r = new Random();
         this.isReplica = PropertiesUtils.getPropertyAsBool(properties, "replica");
         initMultiPaxos(properties);
@@ -126,7 +125,6 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         unorderedList.addAll(messages);
         requestOrdering(topic, messages);
     };
-    private PersistentMap<String> ownedTopics;
 
     private void initMultiPaxos(Properties properties) {
         StartRequest request = new StartRequest();
@@ -227,6 +225,8 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         return membership.get(idx);
     }
 
+    private Map<String, Integer> lastMessagesDelivered = new HashMap<>();
+
     /**
      * Triggers a notification to the client.
      *
@@ -236,9 +236,20 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         MessageDeliver deliver = (MessageDeliver) pNotification;
         String topic = deliver.getTopic();
 
-        if (this.topics.containsKey(topic)) {
-            triggerNotification(new PBDeliver(deliver.getMessage(), topic));
+        int seq = deliver.getSeq();
+        if (!lastMessagesDelivered.containsKey(topic)) {
+            if (this.topics.containsKey(topic)) {
+                triggerNotification(new PBDeliver(deliver.getMessage(), topic));
+            }
+            lastMessagesDelivered.put(topic, seq);
+        } else {
+            int lastSeqSeen = lastMessagesDelivered.get(topic);
+            // Missing messages
+            if (lastSeqSeen + 1 != seq) {
+                //deliver.getTopicOwner();
+            }
         }
+
     }
 
     private void sendRequestDecider(ProtocolRequest request) {

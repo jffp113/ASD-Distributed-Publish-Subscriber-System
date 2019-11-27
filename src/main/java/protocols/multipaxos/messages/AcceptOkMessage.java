@@ -9,7 +9,7 @@ import java.io.Serializable;
 
 public class AcceptOkMessage extends ProtocolMessage implements Serializable {
 
-    public final static short MSG_CODE = 69;
+    public final static short MSG_CODE = 70;
 
     public static final ISerializer<AcceptOkMessage> serializer = new ISerializer<AcceptOkMessage>() {
         @Override

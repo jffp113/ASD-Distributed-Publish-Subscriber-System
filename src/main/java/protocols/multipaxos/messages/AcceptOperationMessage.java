@@ -9,7 +9,7 @@ import java.io.Serializable;
 
 public class AcceptOperationMessage extends ProtocolMessage implements Serializable {
 
-    public final static short MSG_CODE = 25;
+    public final static short MSG_CODE = 26;
 
     public static final ISerializer<AcceptOperationMessage> serializer = new ISerializer<AcceptOperationMessage>() {
         @Override

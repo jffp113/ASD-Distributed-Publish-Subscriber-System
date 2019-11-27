@@ -46,6 +46,8 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
         registerRequestHandler(StartRequest.REQUEST_ID, uponStartRequest);
 
+        registerNotification(DecideNotification.NOTIFICATION_ID, DecideNotification.NOTIFICATION_NAME);
+
         registerMessageHandler(AddReplicaMessage.MSG_CODE, uponAddReplicaMessage, AddReplicaMessage.serializer);
         registerMessageHandler(PrepareMessage.MSG_CODE, uponPrepareMessage, PrepareMessage.serializer);
         registerMessageHandler(PrepareOk.MSG_CODE, uponPrepareOk, PrepareOk.serializer);
@@ -69,6 +71,24 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         this.prepareIssued = false;
         this.paxosInstance = 0;
     }
+
+    private final ProtocolRequestHandler uponStartRequest = (protocolRequest) -> {
+        StartRequest request = (StartRequest) protocolRequest;
+        Host contact = request.getContact();
+
+        if (contact == null) {
+            this.leader = myself;
+            this.replicaSet.add(myself);
+
+            StartRequestReply reply = new StartRequestReply(this.replicaSet, this.leader, this.mySequenceNumber);
+            reply.setDestination(PublishSubscribe.PROTOCOL_ID);
+            deliverReply(reply);
+        } else {
+            AddReplicaMessage message = new AddReplicaMessage(myself);
+            sendMessageSideChannel(message, contact);
+        }
+
+    };
 
     //Paxos instace gravar a operação
     //Esperar pela maioria
@@ -125,23 +145,6 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         deliverNotification(new LeaderNotification(this.leader, this.leaderSN));
     };
 
-    private final ProtocolRequestHandler uponStartRequest = (protocolRequest) -> {
-        StartRequest request = (StartRequest) protocolRequest;
-        Host contact = request.getContact();
-
-        if (contact == null) {
-            this.leader = myself;
-            this.replicaSet.add(myself);
-
-            StartRequestReply reply = new StartRequestReply(this.replicaSet, this.leader, this.mySequenceNumber);
-            reply.setDestination(PublishSubscribe.PROTOCOL_ID);
-            deliverReply(reply);
-        } else {
-            AddReplicaMessage message = new AddReplicaMessage(myself);
-            sendMessageSideChannel(message, contact);
-        }
-
-    };
     private Map<Integer, OrderOperation> pendingOperations;
 
     private void processPropose(OrderOperation operation) {
