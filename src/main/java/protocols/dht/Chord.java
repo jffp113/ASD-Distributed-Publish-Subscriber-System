@@ -65,6 +65,7 @@ public class Chord extends GenericProtocol implements INodeListener {
 
         registerRequestHandler(FindOwnerRequest.REQUEST_ID, uponFindOwnerRequest);
 
+        registerNotification(OwnerNotification.NOTIFICATION_ID,OwnerNotification.NOTIFICATION_NAME);
         // Timers
         registerTimerHandler(StabilizeTimer.TimerCode, uponStabilizeTimer);
         registerTimerHandler(FixFingersTimer.TimerCode, uponFixFingersTimer);

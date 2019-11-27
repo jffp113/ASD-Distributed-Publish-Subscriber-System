@@ -60,6 +60,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         // Notifications produced
         registerNotification(PBDeliver.NOTIFICATION_ID, PBDeliver.NOTIFICATION_NAME);
 
+        registerNotificationHandler(Scribe.PROTOCOL_ID, MessageDeliver.NOTIFICATION_ID, deliverNotification);
         // Requests
         registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
         registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
@@ -78,6 +79,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         this.waiting = new HashMap<>(64);
         this.unordered = new HashMap<>( 64);
         this.membership = new LinkedList<>();
+        this.membership.add(myself);
         this.r = new Random();
         this.isReplica = PropertiesUtils.getPropertyAsBool(properties, "replica");
         initMultiPaxos(properties);
@@ -186,7 +188,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         }
 
         DisseminateSubRequest disseminateSubRequest = new DisseminateSubRequest(topic, isSubscribe);
-        sendRequestDecider(disseminateSubRequest);
+        sendRequestDecider(disseminateSubRequest,Scribe.PROTOCOL_ID);
     };
     /**
      * Sends a publish requests to the underlying protocol.
@@ -197,7 +199,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
         List<String> message = waiting.get(pRequest.getTopic());
         if (message == null) {
-            sendRequestDecider(request);
+            sendRequestDecider(request,Chord.PROTOCOL_ID);
             message = new LinkedList<>();
             waiting.put(pRequest.getTopic(), message);
         }
@@ -232,7 +234,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
      *
      * @param pNotification to be delivered.
      */
-    public void deliverNotification(ProtocolNotification pNotification) {
+    public ProtocolNotificationHandler deliverNotification = (pNotification) ->{
         MessageDeliver deliver = (MessageDeliver) pNotification;
         String topic = deliver.getTopic();
 
@@ -250,11 +252,11 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
             }
         }
 
-    }
+    };
 
-    private void sendRequestDecider(ProtocolRequest request) {
+    private void sendRequestDecider(ProtocolRequest request,short PROTOCOL_ID) {
         logger.info(String.format("%s - Sending message by Scribe", myself));
-        request.setDestination(Chord.PROTOCOL_ID);
+        request.setDestination(PROTOCOL_ID);
 
         sendRequestToProtocol(request);
     }

@@ -5,8 +5,8 @@ import babel.protocol.event.ProtocolMessage;
 import network.Host;
 
 public class OwnerNotification extends ProtocolNotification {
-    public static final short NOTIFICATION_ID = 2045;
-    public static final String NOTIFICATION_NAME = "RouteDelivery";
+    public static final short NOTIFICATION_ID = 26345;
+    public static final String NOTIFICATION_NAME = "OwnerNotification";
 
     private String topic;
     private Host owner;
