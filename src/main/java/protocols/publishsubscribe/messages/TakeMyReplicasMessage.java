@@ -19,7 +19,7 @@ public class TakeMyReplicasMessage extends ProtocolMessage {
         @Override
         public void serialize(TakeMyReplicasMessage m, ByteBuf out) {
             out.writeInt(m.replicas.size());
-            for(Host h : m.replicas){
+            for (Host h : m.replicas) {
                 h.serialize(out);
             }
             out.writeInt(m.topic.length());
@@ -31,7 +31,7 @@ public class TakeMyReplicasMessage extends ProtocolMessage {
             List<Host> replicas = new LinkedList<>();
 
             int size = in.readInt();
-            for(int i = 0 ; i < size ; i++){
+            for (int i = 0; i < size; i++) {
                 replicas.add(Host.deserialize(in));
             }
 
@@ -39,12 +39,12 @@ public class TakeMyReplicasMessage extends ProtocolMessage {
             byte[] topic = new byte[topicSize];
             in.readBytes(topic);
 
-            return new TakeMyReplicasMessage(new String(topic),replicas);
+            return new TakeMyReplicasMessage(new String(topic), replicas);
         }
 
         @Override
         public int serializedSize(TakeMyReplicasMessage m) {
-            return Integer.BYTES*2 + m.replicas.size() * 6 + m.topic.length();
+            return Integer.BYTES * 2 + m.replicas.size() * 6 + m.topic.length();
         }
     };
 
@@ -66,7 +66,7 @@ public class TakeMyReplicasMessage extends ProtocolMessage {
     public String toString() {
         return "PSProtocolMessage{" +
                 "topic=" + topic + "," +
-                 +
-                '}';
+                +
+                        '}';
     }
 }

@@ -139,4 +139,7 @@ public class PersistentMap<K extends Serializable> {
     }
 
 
+    public void setState(Map<K, byte[]> state) {
+        // TODO OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+    }
 }

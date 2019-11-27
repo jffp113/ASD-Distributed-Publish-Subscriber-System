@@ -17,9 +17,8 @@ import protocols.multipaxos.notifications.LeaderNotification;
 import protocols.multipaxos.requests.ProposeRequest;
 import protocols.multipaxos.timers.PrepareTimer;
 import protocols.partialmembership.timers.DebugTimer;
-import protocols.publishsubscribe.PublishSubscribe;
 import protocols.publishsubscribe.requests.StartRequest;
-import protocols.publishsubscribe.requests.StartRequestReply;
+import protocols.publishsubscribe.requests.StartRequestNotification;
 import utils.PropertiesUtils;
 import utils.Utils;
 
@@ -42,7 +41,17 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     private int prepareOks;
     private boolean prepareIssued;
     private int paxosInstance;
-    private Set<Host> replicaSet;
+    private final ProtocolMessageHandler uponPrepareMessage = (protocolMessage) -> {
+        PrepareMessage message = (PrepareMessage) protocolMessage;
+
+        this.leader = message.getFrom();
+        this.leaderSN = message.getSequenceNumber();
+
+        deliverNotification(new LeaderNotification(this.leader, this.leaderSN));
+
+        PrepareOk prepareOk = new PrepareOk(message.getSequenceNumber());
+        sendMessage(prepareOk, message.getFrom());
+    };
     private Host oldLeader;
     private Map<Integer, Integer> operationOkAcks;
 
@@ -64,44 +73,13 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         registerRequestHandler(ProposeRequest.REQUEST_ID, uponProposeRequest);
         registerNodeListener(this);
     }
-
-    @Override
-    public void init(Properties properties) {
-        this.leader = null;
-        this.leaderSN = 0;
-        this.mySequenceNumber = 0;
-        this.replicaSet = new HashSet<>();
-        this.operationOkAcks = new HashMap<>();
-        this.prepareTimout = PropertiesUtils.getPropertyAsInt(properties, PREPARE_TIMEOUT);
-        this.prepareOks = 0;
-        this.prepareIssued = false;
-        this.paxosInstance = 0;
-
-        setupPeriodicTimer(new DebugTimer(), 1000, 10000);
-
-        String rawContacts = PropertiesUtils.getPropertyAsString(properties, "multipaxos_contact");
-
-        if (rawContacts != null) {
-            String[] multipaxosContact = rawContacts.split(":");
-            Host contact = getHost(multipaxosContact);
-
-            AddReplicaMessage message = new AddReplicaMessage(myself);
-            sendMessageSideChannel(message, contact);
-        } else {
-            this.leader = myself;
-            this.leaderSN = 1;
-            this.mySequenceNumber = 1;
-            this.replicaSet.add(myself);
-            addNetworkPeer(myself);
-        }
-    }
-
+    private List<Host> replicas;
     private final ProtocolTimerHandler uponDebugTimer = (protocolTimer) -> {
         StringBuilder sb = new StringBuilder();
         sb.append("--------------------\n");
         sb.append("Leader->" + leader + "(" + leaderSN + ")" + "\n");
         sb.append(myself + "(" + mySequenceNumber + ")" + "\n");
-        sb.append(replicaSet + "\n");
+        sb.append(replicas + "\n");
 
         logger.info(sb.toString());
     };
@@ -124,11 +102,10 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
             this.leader = myself;
             this.leaderSN = 1;
             this.mySequenceNumber = 1;
-            this.replicaSet.add(myself);
+            this.replicas.add(myself);
 
-            StartRequestReply reply = new StartRequestReply(this.replicaSet, this.leader, this.mySequenceNumber);
-            reply.setDestination(PublishSubscribe.PROTOCOL_ID);
-            deliverReply(reply);
+            StartRequestNotification notification = new StartRequestNotification(this.replicas, this.leader, this.mySequenceNumber, paxosInstance);
+            triggerNotification(notification);
         } else {
             AddReplicaMessage message = new AddReplicaMessage(myself);
             sendMessageSideChannel(message, contact);
@@ -139,7 +116,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         AddReplicaMessage message = (AddReplicaMessage) protocolMessage;
         if (imLeader()) {
             Content content = new MembershipUpdateContent(message.getReplica());
-            Operation newReplicaOp = new Operation(Utils.generateId(), ++paxosInstance, Operation.Type.ADD_REPLICA, content);
+            Operation newReplicaOp = new Operation(Utils.generateId(), ++paxosInstance, this.mySequenceNumber, Operation.Type.ADD_REPLICA, content);
             sendMessageToReplicaSet(new AcceptOperationMessage(newReplicaOp), null);
             logger.info(String.format("Im leader processing request from %s\n", message.getReplica().toString()));
         } else {
@@ -150,33 +127,40 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
     private final ProtocolMessageHandler uponAcceptOperation = (protocolMessage) -> {
         AcceptOperationMessage message = (AcceptOperationMessage) protocolMessage;
-        sendMessageToReplicaSet(new AcceptOkMessage(message.getOperation()), null);
+        Operation operation = message.getOperation();
+
+        if (operation.getSequenceNumber() == this.leaderSN) {
+            sendMessageToReplicaSet(new AcceptOkMessage(message.getOperation()), null);
+        }
+
     };
 
     private final ProtocolMessageHandler uponAcceptOkOperation = (protocolMessage) -> {
         AcceptOkMessage message = (AcceptOkMessage) protocolMessage;
         int instance = message.getOperation().getInstance();
         Operation operation = message.getOperation();
-        int oid = operation.getId();
 
-        Integer acks = operationOkAcks.getOrDefault(oid, 0) + 1;
-        operationOkAcks.put(oid, acks);
+        if (operation.getSequenceNumber() == this.leaderSN) {
+            int oid = operation.getId();
+            Integer acks = operationOkAcks.getOrDefault(oid, 0) + 1;
+            operationOkAcks.put(oid, acks);
 
-        if (hasMajorityAcks(acks)) {
-            if (instance > this.paxosInstance) {
-                this.paxosInstance = instance;
-            }
-            if (operation.getType() == Operation.Type.ADD_REPLICA) {
-                processAddReplica(operation);
-            } else if (operation.getType() == Operation.Type.REMOVE_REPLICA) {
-                processRemoveReplica(operation);
+            if (hasMajorityAcks(acks)) {
+                if (instance > this.paxosInstance) {
+                    this.paxosInstance = instance;
+                }
+                if (operation.getType() == Operation.Type.ADD_REPLICA) {
+                    processAddReplica(operation);
+                } else if (operation.getType() == Operation.Type.REMOVE_REPLICA) {
+                    processRemoveReplica(operation);
+                } else {
+                    triggerNotification(new DecideNotification(operation));
+                }
             } else {
-                triggerNotification(new DecideNotification(operation));
-            }
-        } else {
 
-            if (operation.getType() == Operation.Type.REMOVE_REPLICA && this.replicaSet.size() == 2) {
-                processRemoveReplica(operation);
+                if (operation.getType() == Operation.Type.REMOVE_REPLICA && this.replicas.size() == 2) {
+                    processRemoveReplica(operation);
+                }
             }
         }
 
@@ -187,27 +171,41 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
             sendMessage(message, replica);
         }
     }
-
-    private void sendMessageToReplicaSet(ProtocolMessage message, Host except) {
-        Set<Host> aux = new HashSet<>(replicaSet);
-        aux.remove(except);
-        sendMessageToReplicaSet(aux, message);
-    }
-
     private final ProtocolMessageHandler uponAddReplicaResponseMessage = (protocolMessage) -> {
         AddReplicaResponseMessage message = (AddReplicaResponseMessage) protocolMessage;
 
         this.leader = message.getFrom();
-        this.replicaSet = message.getReplicaSet();
+        this.leaderSN = message.getLeaderSN();
+        this.replicas = message.getReplicaSet();
 
-        for (Host replica : replicaSet) {
+        for (Host replica : replicas) {
             addNetworkPeer(replica);
         }
 
         this.paxosInstance = message.getInstance();
-        this.mySequenceNumber = message.getSeqNumber();
+        this.mySequenceNumber = message.getReplicaSN();
 
-        //Trigger notification start response which needs to update replica
+        triggerNotification(new StartRequestNotification(replicas, leader, leaderSN, paxosInstance));
+    };
+    private final ProtocolMessageHandler uponPrepareOk = (protocolMessage) -> {
+        PrepareOk message = (PrepareOk) protocolMessage;
+
+        if (this.mySequenceNumber == message.getSequenceNumber()) {
+            prepareOks++;
+        }
+
+        if (hasMajority(prepareOks)) {
+            this.leader = myself;
+            this.leaderSN = this.mySequenceNumber;
+            this.prepareOks = 0;
+            this.prepareIssued = false;
+
+            Content content = new MembershipUpdateContent(oldLeader);
+            Operation op = new Operation(Utils.generateId(), ++paxosInstance, this.mySequenceNumber, Operation.Type.REMOVE_REPLICA, content);
+            sendMessageToReplicaSet(new AcceptOperationMessage(op), null);
+        }
+
+
     };
 
     private final ProtocolRequestHandler uponProposeRequest = (protocolRequest) -> {
@@ -216,19 +214,41 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         processPropose(operation);
     };
 
-    private void processAddReplica(Operation operation) {
-        MembershipUpdateContent content = (MembershipUpdateContent) operation.getContent();
-        replicaSet.add(content.getReplica());
-        addNetworkPeer(content.getReplica());
-        if (imLeader()) {
-            sendMessage(new AddReplicaResponseMessage(replicaSet, Utils.generateSeqNum(), paxosInstance), content.getReplica());
+    @Override
+    public void init(Properties properties) {
+        this.leader = null;
+        this.leaderSN = 0;
+        this.mySequenceNumber = 0;
+        this.replicas = new LinkedList<>();
+        this.operationOkAcks = new HashMap<>();
+        this.prepareTimout = PropertiesUtils.getPropertyAsInt(properties, PREPARE_TIMEOUT);
+        this.prepareOks = 0;
+        this.prepareIssued = false;
+        this.paxosInstance = 0;
+
+        setupPeriodicTimer(new DebugTimer(), 1000, 10000);
+
+        String rawContacts = PropertiesUtils.getPropertyAsString(properties, "multipaxos_contact");
+
+        if (rawContacts != null) {
+            String[] multipaxosContact = rawContacts.split(":");
+            Host contact = getHost(multipaxosContact);
+
+            AddReplicaMessage message = new AddReplicaMessage(myself);
+            sendMessageSideChannel(message, contact);
+        } else {
+            this.leader = myself;
+            this.leaderSN = 1;
+            this.mySequenceNumber = 1;
+            this.replicas.add(myself);
+            addNetworkPeer(myself);
         }
     }
 
-    private void processRemoveReplica(Operation operation) {
-        MembershipUpdateContent content = (MembershipUpdateContent) operation.getContent();
-        replicaSet.remove(content.getReplica());
-        removeNetworkPeer(content.getReplica());
+    private void sendMessageToReplicaSet(ProtocolMessage message, Host except) {
+        Set<Host> aux = new HashSet<>(replicas);
+        aux.remove(except);
+        sendMessageToReplicaSet(aux, message);
     }
 
     private void processPropose(Operation operation) {
@@ -239,9 +259,13 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         }
     }
 
-    private void accept(Operation operation) {
-        Operation op = new Operation(operation.getId(), ++paxosInstance, operation.getType(), operation.getContent());
-        sendMessageToReplicaSet(new AcceptOperationMessage(op), null);
+    private void processAddReplica(Operation operation) {
+        MembershipUpdateContent content = (MembershipUpdateContent) operation.getContent();
+        replicas.add(content.getReplica());
+        addNetworkPeer(content.getReplica());
+        if (imLeader()) {
+            sendMessage(new AddReplicaResponseMessage(replicas, Utils.generateSeqNum(), this.mySequenceNumber, paxosInstance), content.getReplica());
+        }
     }
 
     private final ProtocolMessageHandler uponForwardProposeMessage = (protocolMessage) -> {
@@ -250,40 +274,19 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         processPropose(operation);
     };
 
-    private final ProtocolMessageHandler uponPrepareMessage = (protocolMessage) -> {
-        PrepareMessage message = (PrepareMessage) protocolMessage;
-        this.leader = message.getFrom();
-        this.leaderSN = message.getSequenceNumber();
+    private void processRemoveReplica(Operation operation) {
+        MembershipUpdateContent content = (MembershipUpdateContent) operation.getContent();
+        replicas.remove(content.getReplica());
+        removeNetworkPeer(content.getReplica());
+    }
 
-        //TODO needs paxosInstance?
-        deliverNotification(new LeaderNotification(this.leader, this.leaderSN));
-
-        PrepareOk prepareOk = new PrepareOk(message.getSequenceNumber());
-        sendMessage(prepareOk, message.getFrom());
-    };
-
-    private final ProtocolMessageHandler uponPrepareOk = (protocolMessage) -> {
-        PrepareOk message = (PrepareOk) protocolMessage;
-
-        if (this.mySequenceNumber == message.getSequenceNumber()) {
-            prepareOks++;
-        }
-
-        if (hasMajority(prepareOks)) {
-            this.leader = myself;
-            this.prepareOks = 0;
-            this.prepareIssued = false;
-
-            Content content = new MembershipUpdateContent(oldLeader);
-            Operation op = new Operation(Utils.generateId(), ++paxosInstance, Operation.Type.REMOVE_REPLICA, content);
-            sendMessageToReplicaSet(new AcceptOperationMessage(op), null);
-        }
-
-
-    };
+    private void accept(Operation operation) {
+        Operation op = new Operation(operation.getId(), ++paxosInstance, this.mySequenceNumber, operation.getType(), operation.getContent());
+        sendMessageToReplicaSet(new AcceptOperationMessage(op), null);
+    }
 
     private boolean hasMajority(int acks) {
-        return hasMajorityAcks(acks) || replicaSet.size() == 2;
+        return hasMajorityAcks(acks) || replicas.size() == 2;
     }
 
     private final ProtocolTimerHandler uponPrepareTimer = (protocolTimer) -> {
@@ -309,7 +312,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     private int getNextSequenceNumber() {
         int seqNum = this.mySequenceNumber;
         while (seqNum < leaderSN) {
-            seqNum += replicaSet.size();
+            seqNum += replicas.size();
         }
 
         return seqNum;
@@ -317,7 +320,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
 
     private boolean hasMajorityAcks(int acks) {
-        int replicaSize = this.replicaSet.size();
+        int replicaSize = this.replicas.size();
         if (replicaSize <= 2) {
             return acks == replicaSize;
         }
@@ -325,7 +328,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     }
 
     private boolean amINextLeader() {
-        Set<Host> set = new HashSet<>(replicaSet);
+        Set<Host> set = new HashSet<>(replicas);
         set.remove(leader);
 
         for (Host h : set) {
@@ -340,7 +343,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     public void nodeDown(Host host) {
         if (imLeader()) {
             Content content = new MembershipUpdateContent(host);
-            Operation op = new Operation(Utils.generateId(), ++paxosInstance, Operation.Type.REMOVE_REPLICA, content);
+            Operation op = new Operation(Utils.generateId(), ++paxosInstance, this.mySequenceNumber, Operation.Type.REMOVE_REPLICA, content);
             sendMessageToReplicaSet(new AcceptOperationMessage(op), null);
         }
 

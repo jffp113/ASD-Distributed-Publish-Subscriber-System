@@ -8,34 +8,23 @@ public class Operation {
 
     private int id;
     private int instance;
+    private int sequenceNumber;
     private Type type;
     private Content content;
 
-    public Operation(int id, int instance, Type type, Content content) {
+    public Operation(int id, int instance, int sequenceNumber, Type type, Content content) {
         this.id = id;
         this.instance = instance;
+        this.sequenceNumber = sequenceNumber;
         this.type = type;
         this.content = content;
-    }
-
-    public void serialize(ByteBuf out) {
-        out.writeInt(id);
-        out.writeInt(instance);
-        out.writeInt(type.ordinal());
-        switch (type) {
-            case ADD_REPLICA:
-            case REMOVE_REPLICA:((MembershipUpdateContent) content).serialize(out);
-                break;
-            default:
-                System.err.println("YOO type is wrong!");
-        }
-
     }
 
     public static Operation deserialize(ByteBuf in) throws UnknownHostException {
         int id = in.readInt();
         int instance = in.readInt();
         Type type = Type.values()[in.readInt()];
+        int sequenceNumber = in.readInt();
         Content content;
         switch (type) {
             case ADD_REPLICA:
@@ -47,7 +36,23 @@ public class Operation {
                 System.err.println("YOO type is wrong!");
         }
 
-        return new Operation(id, instance, type, content);
+        return new Operation(id, instance, sequenceNumber, type, content);
+    }
+
+    public void serialize(ByteBuf out) {
+        out.writeInt(id);
+        out.writeInt(instance);
+        out.writeInt(type.ordinal());
+        out.writeInt(sequenceNumber);
+        switch (type) {
+            case ADD_REPLICA:
+            case REMOVE_REPLICA:
+                ((MembershipUpdateContent) content).serialize(out);
+                break;
+            default:
+                System.err.println("YOO type is wrong!");
+        }
+
     }
 
     public int serializedSize() {
@@ -60,7 +65,7 @@ public class Operation {
             default:
                 System.err.println("YOO type is wrong!");
         }
-        return contentSize + 3 * Integer.BYTES;
+        return contentSize + 4 * Integer.BYTES;
     }
 
     public int getId() {
@@ -79,48 +84,10 @@ public class Operation {
         return type;
     }
 
-    /*public static Operation deserialize(ByteBuf in) {
-                        byte[] topicBytes = new byte[in.readInt()];
-                        in.readBytes(topicBytes);
-                        int size = in.readInt();
-                        List<String> messages = new LinkedList<>();
+    public int getSequenceNumber() {
+        return sequenceNumber;
+    }
 
-                        for (int i = 0; i < size; i++) {
-                            byte[] messageBytes = new byte[in.readInt()];
-                            in.readBytes(messageBytes);
-                            messages.add(new String(messageBytes));
-                        }
-
-                        return new Operation(new String(topicBytes), messages);
-                    }
-
-                    public String getTopic() {
-                        return topic;
-                    }
-
-                    public List<String> getMessages() {
-                        return messages;
-                    }
-
-                    public void serialize(ByteBuf out) {
-                        out.writeInt(this.topic.length());
-                        out.writeBytes(this.topic.getBytes());
-                        out.writeInt(this.messages.size());
-                        for (String message : messages) {
-                            out.writeInt(message.length());
-                            out.writeBytes(message.getBytes());
-                        }
-                    }
-
-                    public int serializedSize(){
-                        int size = 2 * Integer.BYTES + this.topic.length();
-                        for (String msg : this.messages) {
-                            size += msg.length() + Integer.BYTES;
-                        }
-
-                        return size;
-                    }
-                */
     enum Type {
         ADD_REPLICA, REMOVE_REPLICA, WRITE
     }
