@@ -96,6 +96,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     private Map<Integer,OrderOperation> operationMap = new HashMap<>();
 
     private final ProtocolMessageHandler uponAcceptOperation = (protocolMessage) -> {
+        logger.info("Received Accept " + myself);
         AcceptOperationMessage message = (AcceptOperationMessage) protocolMessage;
         operationMap.put(message.getInstance(),message.getOperation());
         sendMessageToReplicaSet(message.acceptOk());
@@ -109,8 +110,9 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         OrderOperation operation = message.getOperation();
         Integer acks = operationOkAcks.getOrDefault(operation,new Integer(0))+1;
         operationOkAcks.put(operation,acks);
-
+        logger.info("Finish Operation");
         if(hasMajority(acks)){
+            logger.info("Has majority");
             if (instance > this.paxosInstance) {
                 this.paxosInstance = instance;
 //                operationMap.remove(operation); TODO
@@ -149,8 +151,10 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
     private void processPropose(OrderOperation operation) {
         if (imLeader()) {
+            logger.info("Leader Processing operation " + myself);
             accept(operation);
         } else {
+            logger.info("Not Leader sending Processing operation " + myself);
             sendMessage(new ForwardProposeMessage(operation), this.leader);
         }
     }

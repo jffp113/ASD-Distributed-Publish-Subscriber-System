@@ -88,6 +88,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     private TreeSet<DecideNotification> message = new TreeSet<>();
     private int paxosInstaces = 0;
     private final ProtocolNotificationHandler uponOrderDecideNotification = (protocolNotification) -> {
+        logger.info("Decide Notification");
         DecideNotification notification = (DecideNotification)protocolNotification;
         message.add(notification);
         
@@ -99,10 +100,11 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         DecideNotification notification = message.first();
 
 
-        if(notification.getPaxosInstance() == paxosInstaces) {
+        if(notification.getPaxosInstance() == paxosInstaces + 1) {
 
             String topic = notification.getOperation().getTopic();
             for(String message: notification.getOperation().getMessages()){
+                logger.info("Scribbing " + message);
                 int seq = messages.put(topic,message);
 
                 if(!isReplica){
@@ -217,7 +219,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
 
     private void requestOrdering(String topic, List<String> messages) {
-        logger.info("RequestOrdering " + messages);
+        logger.info("RequestOrdering " + messages + myself);
         OrderOperation orderOp = new OrderOperation(topic, messages);
         ProposeRequest request = new ProposeRequest(orderOp);
         request.setDestination(MultiPaxos.PROTOCOL_ID);
