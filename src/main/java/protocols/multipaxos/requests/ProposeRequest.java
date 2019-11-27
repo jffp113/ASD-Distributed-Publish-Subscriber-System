@@ -10,7 +10,7 @@ public class ProposeRequest extends ProtocolRequest {
     private OrderOperation operation;
 
     public ProposeRequest(OrderOperation operation) {
-        super(BCastRequest.REQUEST_ID);
+        super(REQUEST_ID);
         this.operation = operation;
     }
 

@@ -93,7 +93,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     //Paxos instace gravar a operação
     //Esperar pela maioria
     //ClIENTE OK
-    private Map<Integer,OrderOperation> operationMap;
+    private Map<Integer,OrderOperation> operationMap = new HashMap<>();
 
     private final ProtocolMessageHandler uponAcceptOperation = (protocolMessage) -> {
         AcceptOperationMessage message = (AcceptOperationMessage) protocolMessage;
@@ -101,7 +101,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         sendMessageToReplicaSet(message.acceptOk());
     };
 
-    private Map<OrderOperation,Integer> operationOkAcks;
+    private Map<OrderOperation,Integer> operationOkAcks = new HashMap<>();
 
     private final ProtocolMessageHandler uponAcceptOkOperation = (protocolMessage) -> {
         AcceptOkMessage message = (AcceptOkMessage) protocolMessage;

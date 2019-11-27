@@ -40,6 +40,6 @@ public class DecideNotification extends ProtocolNotification implements Comparab
 
     @Override
     public int compareTo(Object o) {
-        return new Integer(paxosInstance).compareTo((Integer) o);
+        return new Integer(paxosInstance).compareTo(((DecideNotification) o).getPaxosInstance());
     }
 }
