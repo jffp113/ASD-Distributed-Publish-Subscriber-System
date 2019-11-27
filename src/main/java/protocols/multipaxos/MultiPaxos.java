@@ -174,6 +174,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
                 triggerNotification(new DecideNotification(operation));
             }
         } else {
+
             if (operation.getType() == Operation.Type.REMOVE_REPLICA && this.replicaSet.size() == 2) {
                 processRemoveReplica(operation);
             }
