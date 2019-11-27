@@ -5,7 +5,6 @@ import babel.handlers.ProtocolMessageHandler;
 import babel.handlers.ProtocolNotificationHandler;
 import babel.handlers.ProtocolRequestHandler;
 import babel.notification.INotificationConsumer;
-import babel.notification.ProtocolNotification;
 import babel.protocol.GenericProtocol;
 import babel.requestreply.ProtocolRequest;
 import network.Host;
@@ -194,8 +193,12 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
      * Sends a publish requests to the underlying protocol.
      */
     private ProtocolRequestHandler uponPublishRequest = (publishRequest) -> {
+
         PublishRequest pRequest = (PublishRequest) publishRequest;
-        FindOwnerRequest request = new FindOwnerRequest(pRequest.getMessage());
+        FindOwnerRequest request = new FindOwnerRequest(pRequest.getTopic());
+
+
+        logger.info("Publishing request " + pRequest.getMessage());
 
         List<String> message = waiting.get(pRequest.getTopic());
         if (message == null) {
@@ -214,6 +217,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
 
     private void requestOrdering(String topic, List<String> messages) {
+        logger.info("RequestOrdering " + messages);
         OrderOperation orderOp = new OrderOperation(topic, messages);
         ProposeRequest request = new ProposeRequest(orderOp);
         request.setDestination(MultiPaxos.PROTOCOL_ID);
@@ -235,6 +239,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
      * @param pNotification to be delivered.
      */
     public ProtocolNotificationHandler deliverNotification = (pNotification) ->{
+        logger.info("Delivering notification");
         MessageDeliver deliver = (MessageDeliver) pNotification;
         String topic = deliver.getTopic();
 
@@ -255,7 +260,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     };
 
     private void sendRequestDecider(ProtocolRequest request,short PROTOCOL_ID) {
-        logger.info(String.format("%s - Sending message by Scribe", myself));
+        logger.info(String.format("%s - Sending message", myself));
         request.setDestination(PROTOCOL_ID);
 
         sendRequestToProtocol(request);

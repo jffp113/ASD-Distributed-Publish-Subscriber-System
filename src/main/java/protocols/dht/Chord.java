@@ -145,7 +145,7 @@ public class Chord extends GenericProtocol implements INodeListener {
 
     private final ProtocolMessageHandler uponFindOwnerRequestMessage = (protocolMessage) -> {
         FindOwnerRequestMessage message = (FindOwnerRequestMessage) protocolMessage;
-
+        logger.info("Remote: Finding Owner for " + message.getTopic());
         int topicId = calculateId(message.getTopic());
         if (isSuccessor(topicId)) {
             sendMessageSideChannel(new FindSuccessorResponseMessage(myself, fingers), message.getRequesterNode());
