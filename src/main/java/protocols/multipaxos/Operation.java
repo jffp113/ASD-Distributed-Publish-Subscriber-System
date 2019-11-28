@@ -3,6 +3,7 @@ package protocols.multipaxos;
 import io.netty.buffer.ByteBuf;
 
 import java.net.UnknownHostException;
+import java.util.Objects;
 
 public class Operation {
 
@@ -20,6 +21,14 @@ public class Operation {
         this.content = content;
     }
 
+    public Operation(int id, Type type, Content content) {
+        this.id = id;
+        this.instance = -1;
+        this.sequenceNumber = -1;
+        this.type = type;
+        this.content = content;
+    }
+
     public static Operation deserialize(ByteBuf in) throws UnknownHostException {
         int id = in.readInt();
         int instance = in.readInt();
@@ -30,6 +39,9 @@ public class Operation {
             case ADD_REPLICA:
             case REMOVE_REPLICA:
                 content = MembershipUpdateContent.deserialize(in);
+                break;
+            case WRITE:
+                content = WriteContent.deserialize(in);
                 break;
             default:
                 content = null;
@@ -49,6 +61,9 @@ public class Operation {
             case REMOVE_REPLICA:
                 ((MembershipUpdateContent) content).serialize(out);
                 break;
+            case WRITE:
+                ((WriteContent) content).serialize(out);
+                break;
             default:
                 System.err.println("YOO type is wrong!");
         }
@@ -61,6 +76,9 @@ public class Operation {
             case ADD_REPLICA:
             case REMOVE_REPLICA:
                 contentSize = ((MembershipUpdateContent) content).serializedSize();
+                break;
+            case WRITE:
+                contentSize = ((WriteContent) content).serializedSize();
                 break;
             default:
                 System.err.println("YOO type is wrong!");
@@ -88,7 +106,20 @@ public class Operation {
         return sequenceNumber;
     }
 
-    enum Type {
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Operation operation = (Operation) o;
+        return instance == operation.instance;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(instance);
+    }
+
+    public enum Type {
         ADD_REPLICA, REMOVE_REPLICA, WRITE
     }
 }

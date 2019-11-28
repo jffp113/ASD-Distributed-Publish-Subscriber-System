@@ -15,10 +15,15 @@ import persistence.PersistentMap;
 import protocols.dht.Chord;
 import protocols.dht.notifications.MessageDeliver;
 import protocols.dissemination.Scribe;
+import protocols.dissemination.requests.DisseminatePubRequest;
 import protocols.dissemination.requests.DisseminateSubRequest;
+import protocols.multipaxos.MembershipUpdateContent;
 import protocols.multipaxos.MultiPaxos;
+import protocols.multipaxos.Operation;
+import protocols.multipaxos.WriteContent;
 import protocols.multipaxos.messages.RequestForOrderMessage;
 import protocols.multipaxos.notifications.DecideNotification;
+import protocols.multipaxos.requests.ProposeRequest;
 import protocols.publishsubscribe.messages.GiveMeYourReplicasMessage;
 import protocols.publishsubscribe.messages.StateTransferRequestMessage;
 import protocols.publishsubscribe.messages.StateTransferResponseMessage;
@@ -27,6 +32,7 @@ import protocols.publishsubscribe.notifications.OwnerNotification;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.*;
 import utils.PropertiesUtils;
+import utils.Utils;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -92,13 +98,17 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         Host replicaToExecuteStateTransfer = pickRandomFromMembership(this.membership);
         sendMessageSideChannel(new StateTransferRequestMessage(), replicaToExecuteStateTransfer);
     };
-    private TreeSet<DecideNotification> message = new TreeSet<>();
+
+    private TreeSet<Operation> message = new TreeSet<>();
     private int paxosInstaces = 0;
+
     private final ProtocolNotificationHandler uponOrderDecideNotification = (protocolNotification) -> {
         logger.info("Decide Notification");
         DecideNotification notification = (DecideNotification) protocolNotification;
-        message.add(notification);
+        Operation operation = notification.getOperation();
 
+        message.add(operation);
+        // ver que tipo de operacao e
         executeOperations();
     };
 
@@ -205,6 +215,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         registerMessageHandler(StateTransferResponseMessage.MSG_CODE, uponStateTransferResponseMessage, StateTransferResponseMessage.serializer);
 
     }
+
     /**
      * Sends a publish requests to the underlying protocol.
      */
@@ -235,11 +246,11 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
     private void requestOrdering(String topic, List<String> messages) {
         logger.info("RequestOrdering " + messages + myself);
-        // TODO DESCOMENTAR
-       /* OrderOperation orderOp = new OrderOperation(topic, messages);
+        WriteContent content = new WriteContent(topic, messages);
+        Operation orderOp = new Operation(Utils.generateId(), Operation.Type.WRITE, content);
         ProposeRequest request = new ProposeRequest(orderOp);
         request.setDestination(MultiPaxos.PROTOCOL_ID);
-        sendRequestToProtocol(request);*/
+        sendRequestToProtocol(request);
     }
 
     @Override
@@ -256,26 +267,37 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     }
 
     private void executeOperations() {
-        DecideNotification notification = message.first();
-
-
-        if (notification.getPaxosInstance() == paxosInstaces + 1) {
+        Operation op = message.first();
+        if (op.getInstance() == paxosInstaces + 1) {
             paxosInstaces++;
-            // TODO DESCOMENTAR
-           /* String topic = notification.getOperation().getTopic();
-            for(String message: notification.getOperation().getMessages()){
-                logger.info("Scribbing " + message);
-                int seq = messages.put(topic,message);
+            MembershipUpdateContent muc;
+            switch (op.getType()) {
+                case ADD_REPLICA:
+                    muc = (MembershipUpdateContent) (op.getContent());
+                    this.membership.add(muc.getReplica());
+                    break;
+                case REMOVE_REPLICA:
+                    muc = (MembershipUpdateContent) (op.getContent());
+                    this.membership.remove(muc.getReplica());
+                    break;
+                case WRITE:
+                    WriteContent wc = (WriteContent) op.getContent();
+                    String topic = wc.getTopic();
+                    for (String message : wc.getMessages()) {
+                        logger.info("Scribbing " + message);
+                        int seq = messages.put(topic, message);
 
-                if(!isReplica){
-                    DisseminatePubRequest disseminatePubRequest =
-                            new DisseminatePubRequest(topic, message,seq);
+                        if (!isReplica) {
+                            DisseminatePubRequest disseminatePubRequest =
+                                    new DisseminatePubRequest(topic, message, seq);
 
-                    disseminatePubRequest.setDestination(Scribe.PROTOCOL_ID);
-                    sendRequestToProtocol(disseminatePubRequest);
-                }
-            }*/
-            message.remove(notification);
+                            disseminatePubRequest.setDestination(Scribe.PROTOCOL_ID);
+                            sendRequestToProtocol(disseminatePubRequest);
+                        }
+                    }
+                    break;
+            }
+            message.remove(op);
         }
     }
 
@@ -289,7 +311,6 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     private void sendRequestDecider(ProtocolRequest request, short PROTOCOL_ID) {
         logger.info(String.format("%s - Sending message", myself));
         request.setDestination(PROTOCOL_ID);
-
         sendRequestToProtocol(request);
     }
 

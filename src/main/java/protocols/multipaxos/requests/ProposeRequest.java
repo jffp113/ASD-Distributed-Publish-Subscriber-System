@@ -1,7 +1,6 @@
 package protocols.multipaxos.requests;
 
 import babel.requestreply.ProtocolRequest;
-import protocols.floadbroadcastrecovery.requests.BCastRequest;
 import protocols.multipaxos.Operation;
 
 public class ProposeRequest extends ProtocolRequest {
@@ -10,7 +9,7 @@ public class ProposeRequest extends ProtocolRequest {
     private Operation operation;
 
     public ProposeRequest(Operation operation) {
-        super(BCastRequest.REQUEST_ID);
+        super(REQUEST_ID);
         this.operation = operation;
     }
 
