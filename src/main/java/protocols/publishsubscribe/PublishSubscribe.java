@@ -23,6 +23,7 @@ import protocols.multipaxos.Operation;
 import protocols.multipaxos.WriteContent;
 import protocols.multipaxos.messages.RequestForOrderMessage;
 import protocols.multipaxos.notifications.DecideNotification;
+import protocols.multipaxos.notifications.LeaderNotification;
 import protocols.multipaxos.requests.ProposeRequest;
 import protocols.publishsubscribe.messages.GiveMeYourReplicasMessage;
 import protocols.publishsubscribe.messages.StateTransferRequestMessage;
@@ -46,10 +47,10 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     public static final short PROTOCOL_ID = 1000;
     private static final int INITIAL_CAPACITY = 100;
     private static final String PROTOCOL_NAME = "Publish/Subscriber";
-    private static final String MULTIPAXOS_CONTACT = "MultipaxosContact";
+    private static final String MULTIPAXOS_CONTACT = "multipaxos_contact";
+    private static final String REPLICA = "replica";
 
     private Map<String, Boolean> topics;
-    private Host multiPaxosLeader;
     private Map<String, List<String>> waiting;
     private boolean isReplica;
     private Host leader;
@@ -69,6 +70,12 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         }
 
     };
+
+    private final ProtocolNotificationHandler uponLeaderNotification = (protocolNotification) -> {
+        LeaderNotification notification = (LeaderNotification) protocolNotification;
+        this.leader = notification.getLeader();
+    };
+
     private final ProtocolMessageHandler uponGiveMeYourReplicasMessage = protocolMessage -> {
         GiveMeYourReplicasMessage m = (GiveMeYourReplicasMessage) protocolMessage;
         logger.info(myself + " Replicas requst from " + m.getFrom() + "to topic :" + m.getTopic());
@@ -201,13 +208,13 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         // Notifications produced
         registerNotification(PBDeliver.NOTIFICATION_ID, PBDeliver.NOTIFICATION_NAME);
 
-        registerNotificationHandler(Scribe.PROTOCOL_ID, MessageDeliver.NOTIFICATION_ID, deliverNotification);
         registerNotificationHandler(MultiPaxos.PROTOCOL_ID, StartRequestNotification.NOTIFICATION_ID, uponStartRequestNotification);
         // Requests
         registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
         registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
-        registerNotificationHandler(Chord.PROTOCOL_ID, OwnerNotification.NOTIFICATION_ID, uponOwnerNotification);
+
         registerNotificationHandler(MultiPaxos.PROTOCOL_ID, DecideNotification.NOTIFICATION_ID, uponOrderDecideNotification);
+        registerNotificationHandler(MultiPaxos.PROTOCOL_ID, LeaderNotification.NOTIFICATION_ID, uponLeaderNotification);
         registerMessageHandler(GiveMeYourReplicasMessage.MSG_CODE, uponGiveMeYourReplicasMessage, GiveMeYourReplicasMessage.serializer);
         registerMessageHandler(TakeMyReplicasMessage.MSG_CODE, uponTakeMyReplicasMessage, TakeMyReplicasMessage.serializer);
         registerMessageHandler(RequestForOrderMessage.MSG_CODE, uponRequestForOrderMessage, RequestForOrderMessage.serializer);
@@ -256,13 +263,21 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     @Override
     public void init(Properties properties) {
         this.topics = new HashMap<>(INITIAL_CAPACITY);
-        this.multiPaxosLeader = null;
+        this.leader = null;
         this.waiting = new HashMap<>(64);
         this.unordered = new HashMap<>(64);
         this.membership = new LinkedList<>();
         this.membership.add(myself);
         this.r = new Random();
-        this.isReplica = PropertiesUtils.getPropertyAsBool(properties, "replica");
+        this.isReplica = PropertiesUtils.getPropertyAsBool(properties, REPLICA);
+        if (!isReplica) {
+            try {
+                registerNotificationHandler(Scribe.PROTOCOL_ID, MessageDeliver.NOTIFICATION_ID, deliverNotification);
+                registerNotificationHandler(Chord.PROTOCOL_ID, OwnerNotification.NOTIFICATION_ID, uponOwnerNotification);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
         initMultiPaxos(properties);
     }
 

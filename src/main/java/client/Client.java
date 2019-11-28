@@ -5,7 +5,6 @@ import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import network.INetwork;
 import protocols.dht.Chord;
-import protocols.dht.notifications.MessageDeliver;
 import protocols.dissemination.Scribe;
 import protocols.multipaxos.MultiPaxos;
 import protocols.publishsubscribe.PublishSubscribe;
@@ -21,6 +20,7 @@ public class Client implements INotificationConsumer {
     private static final String NETWORK_CONFIG_PROPERTIES = "src/network_config.properties";
     private static final String NOTIFICATION_FORMAT = "Process %s received event at %d: Topic: %s Message: %s\n";
     private static final String LISTEN_BASE_PORT = "listen_base_port";
+    private static final String REPLICA = "replica";
     private PublishSubscribe pubSub;
     private Properties properties;
     private MultiPaxos paxos;
@@ -32,7 +32,7 @@ public class Client implements INotificationConsumer {
         properties = babel.loadConfig(NETWORK_CONFIG_PROPERTIES, args);
         net = babel.getNetworkInstance();
 
-        if(!PropertiesUtils.getPropertyAsBool(properties,"replica"))
+        if(!PropertiesUtils.getPropertyAsBool(properties, REPLICA))
             activeReplicaProtocols();
 
         paxos = new MultiPaxos(net);

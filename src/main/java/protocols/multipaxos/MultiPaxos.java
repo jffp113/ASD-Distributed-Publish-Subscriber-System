@@ -31,6 +31,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     private static final String PROTOCOL_NAME = "MultiPaxos";
 
     private static final String PREPARE_TIMEOUT = "prepareTimeout";
+    private static final String MULTIPAXOS_CONTACT = "multipaxos_contact";
 
     static Logger logger = LogManager.getLogger(MultiPaxos.class.getName());
 
@@ -96,6 +97,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         }
         return null;
     }
+
     private final ProtocolMessageHandler uponAcceptOkOperation = (protocolMessage) -> {
         AcceptOkMessage message = (AcceptOkMessage) protocolMessage;
         int instance = message.getOperation().getInstance();
@@ -156,6 +158,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         registerTimerHandler(DebugTimer.TimerCode, uponDebugTimer);
         registerNotification(DecideNotification.NOTIFICATION_ID, DecideNotification.NOTIFICATION_NAME);
         registerNotification(StartRequestNotification.NOTIFICATION_ID, StartRequestNotification.NOTIFICATION_NAME);
+        registerNotification(LeaderNotification.NOTIFICATION_ID, LeaderNotification.NOTIFICATION_NAME);
 
         registerMessageHandler(AddReplicaMessage.MSG_CODE, uponAddReplicaMessage, AddReplicaMessage.serializer);
         registerMessageHandler(PrepareMessage.MSG_CODE, uponPrepareMessage, PrepareMessage.serializer);
@@ -232,7 +235,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
         setupPeriodicTimer(new DebugTimer(), 1000, 10000);
 
-        String rawContacts = PropertiesUtils.getPropertyAsString(properties, "multipaxos_contact");
+        String rawContacts = PropertiesUtils.getPropertyAsString(properties, MULTIPAXOS_CONTACT);
 
       /*  if (rawContacts != null) {
             String[] multipaxosContact = rawContacts.split(":");
