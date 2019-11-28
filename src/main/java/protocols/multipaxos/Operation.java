@@ -5,7 +5,7 @@ import io.netty.buffer.ByteBuf;
 import java.net.UnknownHostException;
 import java.util.Objects;
 
-public class Operation {
+public class Operation implements Comparable<Operation> {
 
     private int id;
     private int instance;
@@ -117,6 +117,11 @@ public class Operation {
     @Override
     public int hashCode() {
         return Objects.hash(instance);
+    }
+
+    @Override
+    public int compareTo(Operation o) {
+        return Integer.compare(this.getInstance(), o.getInstance());
     }
 
     public enum Type {

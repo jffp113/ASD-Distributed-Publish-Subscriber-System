@@ -53,6 +53,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         PrepareOk prepareOk = new PrepareOk(message.getSequenceNumber());
         sendMessage(prepareOk, message.getFrom());
     };
+
     private Host oldLeader;
     private Map<Integer, Integer> operationOkAcks;
 
@@ -233,7 +234,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
         String rawContacts = PropertiesUtils.getPropertyAsString(properties, "multipaxos_contact");
 
-        if (rawContacts != null) {
+      /*  if (rawContacts != null) {
             String[] multipaxosContact = rawContacts.split(":");
             Host contact = getHost(multipaxosContact);
 
@@ -245,7 +246,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
             this.mySequenceNumber = 1;
             this.replicas.add(myself);
             addNetworkPeer(myself);
-        }
+        }*/
     }
 
     private void sendMessageToReplicaSet(ProtocolMessage message, Host except) {

@@ -9,6 +9,18 @@ import java.io.Serializable;
 public class PrepareMessage extends ProtocolMessage implements Serializable {
 
     public final static short MSG_CODE = 2005;
+
+    private int sequenceNumber;
+
+    public PrepareMessage(int sequenceNumber) {
+        super(MSG_CODE);
+        this.sequenceNumber = sequenceNumber;
+    }
+
+    public int getSequenceNumber() {
+        return sequenceNumber;
+    }
+
     public static final ISerializer<PrepareMessage> serializer = new ISerializer<PrepareMessage>() {
         @Override
         public void serialize(PrepareMessage m, ByteBuf out) {
@@ -25,14 +37,4 @@ public class PrepareMessage extends ProtocolMessage implements Serializable {
             return Integer.BYTES;
         }
     };
-    private int sequenceNumber;
-
-    public PrepareMessage(int sequenceNumber) {
-        super(MSG_CODE);
-        this.sequenceNumber = sequenceNumber;
-    }
-
-    public int getSequenceNumber() {
-        return sequenceNumber;
-    }
 }

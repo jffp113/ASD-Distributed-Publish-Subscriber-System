@@ -9,6 +9,18 @@ import java.net.UnknownHostException;
 
 public class ForwardProposeMessage extends ProtocolMessage {
     public final static short MSG_CODE = 69;
+
+    private Operation operation;
+
+    public ForwardProposeMessage(Operation operation) {
+        super(MSG_CODE);
+        this.operation = operation;
+    }
+
+    public Operation getOperation() {
+        return operation;
+    }
+
     public static final ISerializer<ForwardProposeMessage> serializer = new ISerializer<ForwardProposeMessage>() {
         @Override
         public void serialize(ForwardProposeMessage m, ByteBuf out) {
@@ -25,14 +37,4 @@ public class ForwardProposeMessage extends ProtocolMessage {
             return m.operation.serializedSize();
         }
     };
-    private Operation operation;
-
-    public ForwardProposeMessage(Operation operation) {
-        super(MSG_CODE);
-        this.operation = operation;
-    }
-
-    public Operation getOperation() {
-        return operation;
-    }
 }

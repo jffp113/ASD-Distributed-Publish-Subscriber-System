@@ -16,4 +16,5 @@ public class ProposeRequest extends ProtocolRequest {
     public Operation getOperation() {
         return operation;
     }
+
 }

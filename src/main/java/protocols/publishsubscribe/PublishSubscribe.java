@@ -303,7 +303,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
     private Host pickRandomFromMembership(List<Host> membership) {
         int size = membership.size();
-        int idx = r.nextInt() % size;
+        int idx = Math.abs(r.nextInt() % size);
 
         return membership.get(idx);
     }
@@ -313,7 +313,6 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         request.setDestination(PROTOCOL_ID);
         sendRequestToProtocol(request);
     }
-
 
     private void sendRequestToProtocol(ProtocolRequest request) {
         try {
