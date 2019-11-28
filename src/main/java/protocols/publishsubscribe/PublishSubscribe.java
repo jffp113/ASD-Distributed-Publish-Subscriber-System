@@ -82,6 +82,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         sendMessageSideChannel(new TakeMyReplicasMessage(m.getTopic(), membership), m.getFrom());
     };
 
+
     private final ProtocolMessageHandler uponStateTransferRequestMessage = (protocolMessage) -> {
         try {
             this.messages.getState();

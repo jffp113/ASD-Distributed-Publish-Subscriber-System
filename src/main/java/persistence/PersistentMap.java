@@ -10,7 +10,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class PersistentMap<K extends Serializable> {
 
     private static final String PATH = "map/";
-    private static final int IN_MEMORY = 10;
+    private static int IN_MEMORY = 10;
 
     BlockingQueue<MyEntry<K, String>> vBlockingQueue;
     private Map<K, File> mapFiles;
@@ -138,8 +138,23 @@ public class PersistentMap<K extends Serializable> {
         }
     }
 
-
     public void setState(Map<K, byte[]> state) {
-        // TODO OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO
+        for(Map.Entry<K,byte[]> entry: state.entrySet()){
+            createNewFile(PATH + id +entry.getKey(), entry.getKey());
+            writeToFile(entry.getValue(),(String)entry.getKey());
+        }
     }
+
+    private void writeToFile(byte[] bytes,String key) {
+        File f = mapFiles.get(key);
+        FileOutputStream in;
+        IN_MEMORY = 0;
+        try {
+            in = new FileOutputStream(f, true);
+            in.write(bytes);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
 }

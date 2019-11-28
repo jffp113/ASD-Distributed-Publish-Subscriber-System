@@ -268,7 +268,9 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
     private void processAddReplica(Operation operation) {
         MembershipUpdateContent content = (MembershipUpdateContent) operation.getContent();
-        replicas.add(content.getReplica());
+
+        if(!replicas.contains(content.getReplica()))
+            replicas.add(content.getReplica());
         addNetworkPeer(content.getReplica());
         if (imLeader()) {
             sendMessage(new AddReplicaResponseMessage(replicas, Utils.generateSeqNum(), this.mySequenceNumber, paxosInstance), content.getReplica());
