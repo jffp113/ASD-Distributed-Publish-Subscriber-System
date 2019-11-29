@@ -337,6 +337,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         sendRequestToProtocol(request);
     }
 
+    Map<String,Integer> topicRelatedSeq = new HashMap<>();
     private void executeOperations() {
         Operation op = operationsToBeExecuted.first();
 
@@ -356,11 +357,15 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
                 case WRITE:
                     WriteContent wc = (WriteContent) op.getContent();
                     String topic = wc.getTopic();
-                    int seq = messages.put(OPERATIONS, op);
+
+                            messages.put(OPERATIONS, op);
                     for (String message : wc.getMessages()) {
                         logger.info("Scribbing " + message);
 
                         if (!isReplica) {
+                            int seq = topicRelatedSeq.getOrDefault(topic,new Integer(0));
+                            seq++;
+                            topicRelatedSeq.put(topic,seq);
                             DisseminatePubRequest disseminatePubRequest =
                                     new DisseminatePubRequest(topic, message, seq);
 
