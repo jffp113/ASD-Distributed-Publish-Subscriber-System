@@ -13,7 +13,7 @@ public class EmptyTest {
 
     @Test
     public void test1() throws Exception{
-        PersistentMap<String> map = new PersistentMap<>("1");
+        PersistentMap<String,String> map = new PersistentMap<>("1");
 
         int a = map.put("Jorge", new String("1"));
         map.put("Jorge", new String("2"));

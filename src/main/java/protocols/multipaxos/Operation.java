@@ -2,10 +2,11 @@ package protocols.multipaxos;
 
 import io.netty.buffer.ByteBuf;
 
+import java.io.Serializable;
 import java.net.UnknownHostException;
 import java.util.Objects;
 
-public class Operation implements Comparable<Operation> {
+public class Operation implements Comparable<Operation>, Serializable {
 
     private int id;
     private int instance;
@@ -69,6 +70,14 @@ public class Operation implements Comparable<Operation> {
         }
 
     }
+
+//    public String serializeToString(){
+//        return String.format("%d|%d|%d|%d|[%s]", id,instance,type,sequenceNumber,); //TODO
+//    }
+//
+//    public Operation deserializeToString(){
+//        return null;
+//    }
 
     public int serializedSize() {
         int contentSize = 0;
