@@ -55,7 +55,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     private final ProtocolTimerHandler uponSendNoOpTimer = (protocolTimer) -> {
         if (imLeader() && replicas.size() > 1) {
             AcceptOperationMessage message = new AcceptOperationMessage(new Operation(Utils.generateId(),
-                    ++this.paxosInstance, this.mySequenceNumber, Operation.Type.NO_OP, new NoContent()));
+                    this.paxosInstance, this.mySequenceNumber, Operation.Type.NO_OP, new NoContent()));
             sendMessageToReplicas(message);
         }
     };
@@ -169,7 +169,6 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         PrepareOk message = (PrepareOk) protocolMessage;
 
         if (this.mySequenceNumber == message.getSequenceNumber()) {
-            //logger.info(String.format("[%s] received prepareOk from"));
             prepareOks++;
             toAccept.addAll(message.getToAccept());
 
@@ -259,7 +258,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
         setupPeriodicTimer(new SendNoOpTimer(), PropertiesUtils.getPropertyAsInt(properties, NO_OP_TIMER_INIT),
                 PropertiesUtils.getPropertyAsInt(properties, NO_OP_TIMER_PERIOD));
 
-        initMultiPaxos(properties);
+       // initMultiPaxos(properties);
     }
 
     private void initMultiPaxos(Properties properties) {
