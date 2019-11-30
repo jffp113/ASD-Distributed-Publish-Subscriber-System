@@ -11,7 +11,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 public class PersistentMap<K extends Serializable, V extends Serializable> {
 
-    private static final String PATH = "map/";
+    private static final String PATH = "./map/";
     private static int IN_MEMORY = 10;
 
     BlockingQueue<MyEntry<K, V>> vBlockingQueue;

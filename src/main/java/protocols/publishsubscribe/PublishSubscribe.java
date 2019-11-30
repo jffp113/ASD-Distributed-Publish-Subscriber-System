@@ -96,7 +96,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         this.unordered = new HashSet<>(64);
         this.topicRelatedSeq = new HashMap<>(64);
         operationsToBeExecuted = new TreeSet<>();
-        this.messages = new PersistentMap<>(myself.toString());
+        this.messages = new PersistentMap<>(myself.getPort() + "");
         this.membership = new LinkedList<>();
         this.membership.add(myself);
         this.r = new Random();
