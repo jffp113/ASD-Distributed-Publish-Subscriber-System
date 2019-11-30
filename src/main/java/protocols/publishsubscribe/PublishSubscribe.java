@@ -309,9 +309,10 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
         //se receber por ordem posso entregar logo caso contrario preciso de fazer getMessage e quando chegar as cenas que preenchem a gap dou deliver
 
-        int currentSeq = lastMessagesDelivered.getOrDefault(topic, 0);
+        int currentSeq = lastMessagesDelivered.getOrDefault(topic, seq - 1);
         currentSeq++;
         if (currentSeq == seq) {
+            logger.info("Executing notification");
             if (this.topics.containsKey(topic)) {
                 triggerNotification(new PBDeliver(deliver.getMessage(), topic));
             }

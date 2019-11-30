@@ -61,7 +61,8 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     };
 
     private final ProtocolTimerHandler uponNoOpTimeout = (protocolTimer) -> {
-        sendPrepare();
+        if(replicas.size() > 1)
+            sendPrepare();
     };
 
     private final ProtocolRequestHandler uponStartRequest = (protocolRequest) -> {
