@@ -22,7 +22,7 @@ import protocols.multipaxos.MembershipUpdateContent;
 import protocols.multipaxos.MultiPaxos;
 import protocols.multipaxos.Operation;
 import protocols.multipaxos.WriteContent;
-import protocols.multipaxos.messages.RequestForOrderMessage;
+import protocols.multipaxos.messages.RequestForOrderOperation;
 import protocols.multipaxos.notifications.DecideNotification;
 import protocols.multipaxos.notifications.LeaderNotification;
 import protocols.multipaxos.requests.ProposeRequest;
@@ -57,80 +57,69 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     private boolean isReplica;
     private Host leader;
     private List<Host> membership;
-    private Map<String, List<String>> unordered;
-
-    private PersistentMap<String,Operation> messages = new PersistentMap<>(myself.toString());
-
-
-    public PublishSubscribe(INetwork net) throws Exception {
-        super(PROTOCOL_NAME, PROTOCOL_ID, net);
-
-        // Notifications produced
-        registerNotification(PBDeliver.NOTIFICATION_ID, PBDeliver.NOTIFICATION_NAME);
-
-        registerNotificationHandler(MultiPaxos.PROTOCOL_ID, StartRequestNotification.NOTIFICATION_ID, uponStartRequestNotification);
-
-        registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
-        registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
-        registerNotificationHandler(MultiPaxos.PROTOCOL_ID, DecideNotification.NOTIFICATION_ID, uponOrderDecideNotification);
-        registerNotificationHandler(MultiPaxos.PROTOCOL_ID, LeaderNotification.NOTIFICATION_ID, uponLeaderNotification);
-        registerMessageHandler(GiveMeYourReplicasMessage.MSG_CODE, uponGiveMeYourReplicasMessage, GiveMeYourReplicasMessage.serializer);
-        registerMessageHandler(TakeMyReplicasMessage.MSG_CODE, uponTakeMyReplicasMessage, TakeMyReplicasMessage.serializer);
-        registerMessageHandler(RequestForOrderMessage.MSG_CODE, uponRequestForOrderMessage, RequestForOrderMessage.serializer);
-        registerMessageHandler(StateTransferRequestMessage.MSG_CODE, uponStateTransferRequestMessage, StateTransferRequestMessage.serializer);
-        registerMessageHandler(StateTransferResponseMessage.MSG_CODE, uponStateTransferResponseMessage, StateTransferResponseMessage.serializer);
-
-        registerMessageHandler(LatePaxosInstanceRequestMessage.MSG_CODE,uponLatePaxosInstanceMessage, LatePaxosInstanceRequestMessage.serializer);
-        //Timers
-        registerTimerHandler(OrderMessageCheckerTimer.TimerCode, uponOrderMessageCheckerTimer);
-
-    }
-
-
-    @Override
-    public void init(Properties properties) {
-        this.topics = new HashMap<>(INITIAL_CAPACITY);
-        this.leader = null;
-        this.waiting = new HashMap<>(64);
-        this.unordered = new HashMap<>(64);
-        this.membership = new LinkedList<>();
-        this.membership.add(myself);
-        this.r = new Random();
-        this.isReplica = PropertiesUtils.getPropertyAsBool(properties, REPLICA);
-
-        if (!isReplica) {
-            try {
-                registerNotificationHandler(Scribe.PROTOCOL_ID, MessageDeliver.NOTIFICATION_ID, deliverNotification);
-                registerNotificationHandler(Chord.PROTOCOL_ID, OwnerNotification.NOTIFICATION_ID, uponOwnerNotification);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-        initMultiPaxos(properties);
-
-        long timerInit = Long.parseLong(properties.getProperty(TIMER_INIT));
-        long timerPeriod = Long.parseLong(properties.getProperty(TIMER_PERIOD));
-        setupPeriodicTimer(new OrderMessageCheckerTimer(), timerInit, timerPeriod);
-
-    }
-
     private final ProtocolMessageHandler uponTakeMyReplicasMessage = protocolMessage -> {
         logger.info(myself + "upon take my replicas");
         TakeMyReplicasMessage m = (TakeMyReplicasMessage) protocolMessage;
         String topic = m.getTopic();
-        Host replica = pickRandomFromMembership(m.getReplicas());
         List<String> toOrder = this.waiting.remove(topic);
 
         if (toOrder != null) {
+            Host replica = pickRandomFromMembership(m.getReplicas());
+            WriteContent content = new WriteContent(topic, toOrder);
+            Operation orderOp = new Operation(Utils.generateId(), Operation.Type.WRITE, content);
             logger.info(myself + " Sending request for ordering to" + replica);
-            sendMessageSideChannel(new RequestForOrderMessage(topic, toOrder), replica);
+            sendMessageSideChannel(new RequestForOrderOperation(orderOp), replica);
         }
 
     };
+    private final ProtocolTimerHandler uponOrderMessageCheckerTimer = (protocolTimer) -> {
+        List<Operation> currentOperationsToBeExecuted = new LinkedList<>(operationsToBeExecuted);
 
+        if (currentOperationsToBeExecuted.isEmpty())
+            return;
+
+        Operation nextOperationWaiting = currentOperationsToBeExecuted.get(0);
+        int nextPaxosInstance = this.paxosInstaces + 1;
+        if (nextOperationWaiting.getInstance() != nextPaxosInstance) {
+            logger.info(myself + "has late operations");
+            Host replica = pickRandomFromMembership(membership);
+
+            sendMessageSideChannel(new LatePaxosInstanceRequestMessage(nextPaxosInstance,
+                    nextOperationWaiting.getInstance()), replica);
+        }
+    };
+    Map<String, Integer> topicRelatedSeq = new HashMap<>();
+    private Set<Operation> unordered;
     private final ProtocolNotificationHandler uponLeaderNotification = (protocolNotification) -> {
         LeaderNotification notification = (LeaderNotification) protocolNotification;
         this.leader = notification.getLeader();
+
+        if (notification.getPaxosInstance() > this.paxosInstaces) {
+            this.paxosInstaces = notification.getPaxosInstance();
+        }
+
+        for (Operation op : this.unordered) {
+            if (amILeader()) {
+                ProposeRequest request = new ProposeRequest(op);
+                request.setDestination(MultiPaxos.PROTOCOL_ID);
+                sendRequestToProtocol(request);
+            } else {
+                sendMessage(new RequestForOrderOperation(op), this.leader);
+            }
+
+        }
+    };
+    private final ProtocolMessageHandler uponRequestForOrderMessage = (protocolMessage) -> {
+        RequestForOrderOperation message = (RequestForOrderOperation) protocolMessage;
+        Operation orderOp = message.getOperation();
+        this.unordered.add(orderOp);
+        if (amILeader()) {
+            ProposeRequest request = new ProposeRequest(orderOp);
+            request.setDestination(MultiPaxos.PROTOCOL_ID);
+            sendRequestToProtocol(request);
+        } else {
+            sendMessage(message, this.leader);
+        }
     };
 
     private final ProtocolMessageHandler uponGiveMeYourReplicasMessage = protocolMessage -> {
@@ -166,40 +155,23 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
     private TreeSet<Operation> operationsToBeExecuted = new TreeSet<>();
     private int paxosInstaces = 0;
-
+    private PersistentMap<String, Operation> messages = new PersistentMap<>(myself.toString());
     private final ProtocolNotificationHandler uponOrderDecideNotification = (protocolNotification) -> {
         logger.info("Decide Notification");
         DecideNotification notification = (DecideNotification) protocolNotification;
         Operation operation = notification.getOperation();
 
-        operationsToBeExecuted.add(operation);
+        this.unordered.remove(operation);
 
+        operationsToBeExecuted.add(operation);
         executeOperations();
     };
-
-    private final ProtocolTimerHandler uponOrderMessageCheckerTimer = (protocolTimer) -> {
-        List<Operation> currentOperationsToBeExecuted = new LinkedList<>(operationsToBeExecuted);
-
-        if(currentOperationsToBeExecuted.isEmpty())
-            return;
-
-        Operation nextOperationWaiting = currentOperationsToBeExecuted.get(0);
-        int nextPaxosInstance = this.paxosInstaces + 1;
-        if(nextOperationWaiting.getInstance() != nextPaxosInstance){
-            logger.info(myself + "has late operations");
-            Host replica = pickRandomFromMembership(membership);
-
-            sendMessageSideChannel(new LatePaxosInstanceRequestMessage(nextPaxosInstance,
-                    nextOperationWaiting.getInstance()),replica);
-        }
-    };
-
     private final ProtocolMessageHandler uponLatePaxosInstanceMessage = (protocolMessage) -> {
         logger.info("Received a late request message from " + protocolMessage.getFrom());
-        LatePaxosInstanceRequestMessage message = (LatePaxosInstanceRequestMessage)protocolMessage;
+        LatePaxosInstanceRequestMessage message = (LatePaxosInstanceRequestMessage) protocolMessage;
         try {
             sendMessageSideChannel(new LatePaxosInstanceReplyMessage(messages.get(OPERATIONS,
-                    message.getStart(),message.getEnd())), protocolMessage.getFrom());
+                    message.getStart(), message.getEnd())), protocolMessage.getFrom());
         } catch (Exception e) {
             logger.error(e);
             logger.error("Could not send late operations");
@@ -208,10 +180,10 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
     private final ProtocolMessageHandler uponLatePaxosInstanceReplyMessage = (protocolMessage) -> {
         logger.info("Received a late request message from " + protocolMessage.getFrom());
-        LatePaxosInstanceReplyMessage message = (LatePaxosInstanceReplyMessage)protocolMessage;
+        LatePaxosInstanceReplyMessage message = (LatePaxosInstanceReplyMessage) protocolMessage;
 
-        for(Operation op : message.getOperations()){
-            messages.put(OPERATIONS,op);
+        for (Operation op : message.getOperations()) {
+            messages.put(OPERATIONS, op);
         }
 
     };
@@ -241,22 +213,29 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     };
 
 
-    private final ProtocolMessageHandler uponRequestForOrderMessage = (protocolMessage) -> {
-        RequestForOrderMessage message = (RequestForOrderMessage) protocolMessage;
-        String topic = message.getTopic();
-        List<String> messages = message.getMessages();
-        List<String> unorderedList = this.unordered.getOrDefault(topic, new LinkedList<>());
-        unorderedList.addAll(messages);
-        if (amILeader()) {
-            WriteContent content = new WriteContent(topic, messages);
-            Operation orderOp = new Operation(Utils.generateId(), Operation.Type.WRITE, content);
-            ProposeRequest request = new ProposeRequest(orderOp);
-            request.setDestination(MultiPaxos.PROTOCOL_ID);
-            sendRequestToProtocol(request);
-        } else {
-            sendMessage(message, this.leader);
-        }
-    };
+    public PublishSubscribe(INetwork net) throws Exception {
+        super(PROTOCOL_NAME, PROTOCOL_ID, net);
+
+        // Notifications produced
+        registerNotification(PBDeliver.NOTIFICATION_ID, PBDeliver.NOTIFICATION_NAME);
+
+        registerNotificationHandler(MultiPaxos.PROTOCOL_ID, StartRequestNotification.NOTIFICATION_ID, uponStartRequestNotification);
+
+        registerRequestHandler(PublishRequest.REQUEST_ID, uponPublishRequest);
+        registerRequestHandler(SubscribeRequest.REQUEST_ID, uponSubscribeRequest);
+        registerNotificationHandler(MultiPaxos.PROTOCOL_ID, DecideNotification.NOTIFICATION_ID, uponOrderDecideNotification);
+        registerNotificationHandler(MultiPaxos.PROTOCOL_ID, LeaderNotification.NOTIFICATION_ID, uponLeaderNotification);
+        registerMessageHandler(GiveMeYourReplicasMessage.MSG_CODE, uponGiveMeYourReplicasMessage, GiveMeYourReplicasMessage.serializer);
+        registerMessageHandler(TakeMyReplicasMessage.MSG_CODE, uponTakeMyReplicasMessage, TakeMyReplicasMessage.serializer);
+        registerMessageHandler(RequestForOrderOperation.MSG_CODE, uponRequestForOrderMessage, RequestForOrderOperation.serializer);
+        registerMessageHandler(StateTransferRequestMessage.MSG_CODE, uponStateTransferRequestMessage, StateTransferRequestMessage.serializer);
+        registerMessageHandler(StateTransferResponseMessage.MSG_CODE, uponStateTransferResponseMessage, StateTransferResponseMessage.serializer);
+
+        registerMessageHandler(LatePaxosInstanceRequestMessage.MSG_CODE, uponLatePaxosInstanceMessage, LatePaxosInstanceRequestMessage.serializer);
+        //Timers
+        registerTimerHandler(OrderMessageCheckerTimer.TimerCode, uponOrderMessageCheckerTimer);
+
+    }
 
     private void initMultiPaxos(Properties properties) {
         StartRequest request = new StartRequest();
@@ -343,7 +322,33 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         return myself.equals(this.leader);
     }
 
-    Map<String,Integer> topicRelatedSeq = new HashMap<>();
+    @Override
+    public void init(Properties properties) {
+        this.topics = new HashMap<>(INITIAL_CAPACITY);
+        this.leader = null;
+        this.waiting = new HashMap<>(64);
+        this.unordered = new HashSet<>(64);
+        this.membership = new LinkedList<>();
+        this.membership.add(myself);
+        this.r = new Random();
+        this.isReplica = PropertiesUtils.getPropertyAsBool(properties, REPLICA);
+
+        if (!isReplica) {
+            try {
+                registerNotificationHandler(Scribe.PROTOCOL_ID, MessageDeliver.NOTIFICATION_ID, deliverNotification);
+                registerNotificationHandler(Chord.PROTOCOL_ID, OwnerNotification.NOTIFICATION_ID, uponOwnerNotification);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
+        initMultiPaxos(properties);
+
+        long timerInit = Long.parseLong(properties.getProperty(TIMER_INIT));
+        long timerPeriod = Long.parseLong(properties.getProperty(TIMER_PERIOD));
+        setupPeriodicTimer(new OrderMessageCheckerTimer(), timerInit, timerPeriod);
+    }
+
     private void executeOperations() {
         Operation op = operationsToBeExecuted.first();
 
@@ -354,7 +359,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
             switch (op.getType()) {
                 case ADD_REPLICA:
                     muc = (MembershipUpdateContent) (op.getContent());
-                    if(!this.membership.contains(muc.getReplica())){
+                    if (!this.membership.contains(muc.getReplica())) {
                         this.membership.add(muc.getReplica());
                     }
                     break;
@@ -366,26 +371,25 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
                     WriteContent wc = (WriteContent) op.getContent();
                     String topic = wc.getTopic();
 
-                            messages.put(OPERATIONS, op);
+                    messages.put(OPERATIONS, op);
                     for (String message : wc.getMessages()) {
                         logger.info("Scribbing " + message);
 
                         if (!isReplica) {
-                            int seq = topicRelatedSeq.getOrDefault(topic,new Integer(0));
+                            int seq = topicRelatedSeq.getOrDefault(topic, new Integer(0));
                             seq++;
-                            topicRelatedSeq.put(topic,seq);
+                            topicRelatedSeq.put(topic, seq);
                             DisseminatePubRequest disseminatePubRequest =
                                     new DisseminatePubRequest(topic, message, seq);
 
                             disseminatePubRequest.setDestination(Scribe.PROTOCOL_ID);
                             sendRequestToProtocol(disseminatePubRequest);
                         }
-                        unorderedTopicMessages.remove(message);
                     }
                     break;
             }
             operationsToBeExecuted.remove(op);
-        }else{
+        } else {
             logger.info("Paxos instance did not match");
         }
     }

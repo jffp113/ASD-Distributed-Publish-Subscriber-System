@@ -38,20 +38,20 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     private static final String NO_OP_TIMEOUT = "noOpTimeout";
 
     private static final String MULTIPAXOS_CONTACT = "multipaxos_contact";
+    private static final String STATIC_REPLICA_SIZE = "static_replica_size";
 
     static Logger logger = LogManager.getLogger(MultiPaxos.class.getName());
 
     private List<Host> replicas;
     private int mySequenceNumber;
-    private final ProtocolTimerHandler uponNoOpTimeout = (protocolTimer) -> {
-        sendPrepare();
-    };
     private Host leader;
     private int leaderSN;
     private int prepareTimout;
     private int prepareOks;
     private boolean prepareIssued;
     private int paxosInstance;
+    private int maxReplicas;
+
     private final ProtocolTimerHandler uponSendNoOpTimer = (protocolTimer) -> {
         if (imLeader() && replicas.size() > 1) {
             AcceptOperationMessage message = new AcceptOperationMessage(new Operation(Utils.generateId(),
@@ -59,6 +59,11 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
             sendMessageToReplicas(message);
         }
     };
+
+    private final ProtocolTimerHandler uponNoOpTimeout = (protocolTimer) -> {
+        sendPrepare();
+    };
+
     private final ProtocolRequestHandler uponStartRequest = (protocolRequest) -> {
         StartRequest request = (StartRequest) protocolRequest;
         Host contact = request.getContact();
@@ -188,7 +193,6 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
             }
         }
 
-
     };
     private int noOpTimeoutPeriod;
 
@@ -201,6 +205,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
         logger.info(sb.toString());
     };
+
     private final ProtocolMessageHandler uponAcceptOperation = (protocolMessage) -> {
         AcceptOperationMessage message = (AcceptOperationMessage) protocolMessage;
         Operation operation = message.getOperation();
@@ -240,21 +245,15 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
 
     @Override
     public void init(Properties properties) {
-        this.leader = null;
-        this.oldLeader = null;
-        this.leaderSN = 0;
-        this.mySequenceNumber = 0;
         this.replicas = new LinkedList<>();
         this.operationOkAcks = new HashMap<>();
         this.prepareTimout = PropertiesUtils.getPropertyAsInt(properties, PREPARE_TIMEOUT);
         this.noOpTimeoutPeriod = PropertiesUtils.getPropertyAsInt(properties, NO_OP_TIMEOUT);
-        this.prepareOks = 0;
         this.prepareIssued = false;
-        this.paxosInstance = 0;
-        this.nodesFailed = 0;
         this.toAccept = new TreeSet<>();
         this.acceptedOperations = new TreeSet<>();
         this.noOpTimeout = new NoOpTimeout();
+        this.maxReplicas = PropertiesUtils.getPropertyAsInt(properties, STATIC_REPLICA_SIZE);
 
         setupPeriodicTimer(new DebugTimer(), 1000, 10000);
         setupPeriodicTimer(new SendNoOpTimer(), PropertiesUtils.getPropertyAsInt(properties, NO_OP_TIMER_INIT),
@@ -386,9 +385,9 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     }
 
     private int getNextSequenceNumber() {
-        int seqNum = this.mySequenceNumber + replicas.size();
+        int seqNum = this.mySequenceNumber + this.maxReplicas;
         while (seqNum < leaderSN) {
-            seqNum += replicas.size();
+            seqNum += this.maxReplicas;
         }
 
         return seqNum;

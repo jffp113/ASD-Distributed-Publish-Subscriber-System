@@ -9,19 +9,19 @@ public class LeaderNotification extends ProtocolNotification {
     public static final String NOTIFICATION_NAME = "LeaderNotification";
 
     private Host leader;
-    private int leaderSN;
+    private int paxosInstance;
 
-    public LeaderNotification(Host leader, int leaderSN) {
+    public LeaderNotification(Host leader, int paxosInstance) {
         super(NOTIFICATION_ID, NOTIFICATION_NAME);
         this.leader = leader;
-        this.leaderSN = leaderSN;
+        this.paxosInstance = paxosInstance;
     }
 
     public Host getLeader() {
         return leader;
     }
 
-    public int getLeaderSN() {
-        return leaderSN;
+    public int getPaxosInstance() {
+        return paxosInstance;
     }
 }
