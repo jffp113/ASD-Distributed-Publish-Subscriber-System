@@ -25,10 +25,7 @@ import protocols.multipaxos.messages.RequestForOrderMessage;
 import protocols.multipaxos.notifications.DecideNotification;
 import protocols.multipaxos.notifications.LeaderNotification;
 import protocols.multipaxos.requests.ProposeRequest;
-import protocols.publishsubscribe.messages.GiveMeYourReplicasMessage;
-import protocols.publishsubscribe.messages.StateTransferRequestMessage;
-import protocols.publishsubscribe.messages.StateTransferResponseMessage;
-import protocols.publishsubscribe.messages.TakeMyReplicasMessage;
+import protocols.publishsubscribe.messages.*;
 import protocols.publishsubscribe.notifications.OwnerNotification;
 import protocols.publishsubscribe.notifications.PBDeliver;
 import protocols.publishsubscribe.requests.*;
@@ -39,7 +36,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.*;
-
 
 public class PublishSubscribe extends GenericProtocol implements INotificationConsumer {
     final static Logger logger = LogManager.getLogger(PublishSubscribe.class.getName());
@@ -151,7 +147,15 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         List<String> messages = message.getMessages();
         List<String> unorderedList = this.unordered.getOrDefault(topic, new LinkedList<>());
         unorderedList.addAll(messages);
-        requestOrdering(topic, messages);
+        if (amILeader()) {
+            WriteContent content = new WriteContent(topic, messages);
+            Operation orderOp = new Operation(Utils.generateId(), Operation.Type.WRITE, content);
+            ProposeRequest request = new ProposeRequest(orderOp);
+            request.setDestination(MultiPaxos.PROTOCOL_ID);
+            sendRequestToProtocol(request);
+        } else {
+            sendMessage(message, this.leader);
+        }
     };
 
     private void initMultiPaxos(Properties properties) {
@@ -191,6 +195,8 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
         int seq = deliver.getSeq();
 
+        //se receber por ordem posso entregar logo caso contrario preciso de fazer getMessage e quando chegar as cenas que preenchem a gap dou deliver
+
         int currentSeq = lastMessagesDelivered.getOrDefault(topic, new Integer(0));
         currentSeq++;
         if (currentSeq == seq) {
@@ -198,7 +204,11 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
                 triggerNotification(new PBDeliver(deliver.getMessage(), topic));
             }
             lastMessagesDelivered.put(topic, seq);
-
+        } else {
+            GetMessages message = new GetMessages(topic, currentSeq, seq);
+            // preciso de ir ver quem é a membership e depois tenho de enviar para eles um get message, entretanto podem chegar mais
+            // deliver notifications que por si so podem ter gaps
+            //sendMessage();
         }
 
     };
@@ -228,10 +238,8 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
      * Sends a publish requests to the underlying protocol.
      */
     private ProtocolRequestHandler uponPublishRequest = (publishRequest) -> {
-
         PublishRequest pRequest = (PublishRequest) publishRequest;
         FindOwnerRequest request = new FindOwnerRequest(pRequest.getTopic());
-
 
         logger.info("Publishing request " + pRequest.getMessage());
 
@@ -251,14 +259,8 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
                 notification.getOwner());
     };
 
-
-    private void requestOrdering(String topic, List<String> messages) {
-        logger.info("RequestOrdering " + messages + myself);
-        WriteContent content = new WriteContent(topic, messages);
-        Operation orderOp = new Operation(Utils.generateId(), Operation.Type.WRITE, content);
-        ProposeRequest request = new ProposeRequest(orderOp);
-        request.setDestination(MultiPaxos.PROTOCOL_ID);
-        sendRequestToProtocol(request);
+    private boolean amILeader() {
+        return myself.equals(this.leader);
     }
 
     @Override
@@ -290,7 +292,9 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
             switch (op.getType()) {
                 case ADD_REPLICA:
                     muc = (MembershipUpdateContent) (op.getContent());
-                    this.membership.add(muc.getReplica());
+                    if(!this.membership.contains(muc.getReplica())){
+                        this.membership.add(muc.getReplica());
+                    }
                     break;
                 case REMOVE_REPLICA:
                     muc = (MembershipUpdateContent) (op.getContent());
@@ -299,8 +303,9 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
                 case WRITE:
                     WriteContent wc = (WriteContent) op.getContent();
                     String topic = wc.getTopic();
+                    List<String> unorderedTopicMessages = unordered.getOrDefault(topic, new LinkedList<>());
                     for (String message : wc.getMessages()) {
-                        logger.info("Scribbing " + message);
+                        logger.info("Scribing " + message);
                         int seq = messages.put(topic, message);
 
                         if (!isReplica) {
@@ -310,6 +315,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
                             disseminatePubRequest.setDestination(Scribe.PROTOCOL_ID);
                             sendRequestToProtocol(disseminatePubRequest);
                         }
+                        unorderedTopicMessages.remove(message);
                     }
                     break;
             }

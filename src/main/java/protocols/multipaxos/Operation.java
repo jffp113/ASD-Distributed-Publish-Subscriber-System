@@ -43,6 +43,9 @@ public class Operation implements Comparable<Operation> {
             case WRITE:
                 content = WriteContent.deserialize(in);
                 break;
+            case NO_OP:
+                content = new NoContent();
+                break;
             default:
                 content = null;
                 System.err.println("YOO type is wrong!");
@@ -64,6 +67,8 @@ public class Operation implements Comparable<Operation> {
             case WRITE:
                 ((WriteContent) content).serialize(out);
                 break;
+            case NO_OP:
+                break;
             default:
                 System.err.println("YOO type is wrong!");
         }
@@ -79,6 +84,8 @@ public class Operation implements Comparable<Operation> {
                 break;
             case WRITE:
                 contentSize = ((WriteContent) content).serializedSize();
+                break;
+            case NO_OP:
                 break;
             default:
                 System.err.println("YOO type is wrong!");
@@ -111,12 +118,14 @@ public class Operation implements Comparable<Operation> {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Operation operation = (Operation) o;
-        return instance == operation.instance;
+        return id == operation.id &&
+                instance == operation.instance &&
+                type == operation.type;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(instance);
+        return Objects.hash(id, instance, type);
     }
 
     @Override
@@ -125,6 +134,6 @@ public class Operation implements Comparable<Operation> {
     }
 
     public enum Type {
-        ADD_REPLICA, REMOVE_REPLICA, WRITE
+        ADD_REPLICA, REMOVE_REPLICA, WRITE, NO_OP
     }
 }
