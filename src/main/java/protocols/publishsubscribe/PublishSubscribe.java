@@ -63,7 +63,6 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     private TreeSet<Operation> operationsToBeExecuted;
     private int paxosInstaces;
     private PersistentMap<String, Operation> messages;
-    private Set<Operation> decided = new HashSet<>();
 
     public PublishSubscribe(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
@@ -219,7 +218,6 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         DecideNotification notification = (DecideNotification) protocolNotification;
         Operation operation = notification.getOperation();
 
-        this.decided.add(operation);
         this.unordered.remove(operation);
 
         operationsToBeExecuted.add(operation);
