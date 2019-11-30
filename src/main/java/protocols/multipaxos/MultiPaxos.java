@@ -123,6 +123,7 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
     private TreeSet<Operation> toAccept;
     private Map<Integer, Integer> operationOkAcks;
     private TreeSet<Operation> acceptedOperations;
+
     private final ProtocolMessageHandler uponPrepareMessage = (protocolMessage) -> {
         PrepareMessage message = (PrepareMessage) protocolMessage;
 
@@ -136,16 +137,15 @@ public class MultiPaxos extends GenericProtocol implements INodeListener {
             Set<Operation> missingOperations = getMissingOperations(message.getPaxosInstance());
             PrepareOk prepareOk = new PrepareOk(this.leaderSN, missingOperations);
             sendMessage(prepareOk, message.getFrom());
-            deliverNotification(new LeaderNotification(this.leader, this.leaderSN));
+            triggerNotification(new LeaderNotification(this.leader, this.leaderSN));
         }
     };
+
     private NoOpTimeout noOpTimeout;
     private int nodesFailed;
     private final ProtocolMessageHandler uponAcceptOkOperation = (protocolMessage) -> {
         AcceptOkMessage message = (AcceptOkMessage) protocolMessage;
         Operation operation = message.getOperation();
-
-        logger.info(String.format("[%s] ACCEPTOK TYPE:%s FROM:%s", myself, operation.getType(), message.getFrom()));
 
         if (operation.getSequenceNumber() == this.leaderSN) {
             // case when a new leader redecides an operation that was previously seen by this replica

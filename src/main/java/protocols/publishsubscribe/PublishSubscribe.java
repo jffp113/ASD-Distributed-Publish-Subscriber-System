@@ -63,6 +63,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
     private TreeSet<Operation> operationsToBeExecuted;
     private int paxosInstaces;
     private PersistentMap<String, Operation> messages;
+    private Set<Operation> decided = new HashSet<>();
 
     public PublishSubscribe(INetwork net) throws Exception {
         super(PROTOCOL_NAME, PROTOCOL_ID, net);
@@ -192,8 +193,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
     private final ProtocolMessageHandler uponStateTransferRequestMessage = (protocolMessage) -> {
         try {
-            this.messages.getState();
-
+            sendMessage(new StateTransferResponseMessage(this.messages.getState()), protocolMessage.getFrom());
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -219,6 +219,7 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
         DecideNotification notification = (DecideNotification) protocolNotification;
         Operation operation = notification.getOperation();
 
+        this.decided.add(operation);
         this.unordered.remove(operation);
 
         operationsToBeExecuted.add(operation);
@@ -397,7 +398,14 @@ public class PublishSubscribe extends GenericProtocol implements INotificationCo
 
     private Host pickRandomFromMembership(List<Host> membership) {
         int size = membership.size();
+        if (size == 1) {
+            return myself;
+        }
+
         int idx = Math.abs(r.nextInt() % size);
+        while (membership.get(idx).equals(myself)) {
+            idx = Math.abs(r.nextInt() % size);
+        }
 
         return membership.get(idx);
     }

@@ -76,7 +76,12 @@ public class Operation implements Comparable<Operation>, Serializable {
 
     }
 
-//    public String serializeToString(){
+    @Override
+    public String toString() {
+        return String.format("operation: id - %d| instance - %d| type - %d| sn - %d|", id, instance, type.ordinal(), sequenceNumber);
+    }
+
+    //    public String serializeToString(){
 //        return String.format("%d|%d|%d|%d|[%s]", id,instance,type,sequenceNumber,); //TODO
 //    }
 //
@@ -127,14 +132,12 @@ public class Operation implements Comparable<Operation>, Serializable {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Operation operation = (Operation) o;
-        return id == operation.id &&
-                instance == operation.instance &&
-                type == operation.type;
+        return id == operation.id;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, instance, type);
+        return Objects.hash(id);
     }
 
     @Override

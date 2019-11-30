@@ -24,7 +24,7 @@ public class LatePaxosInstanceReplyMessage extends ProtocolMessage implements Se
         @Override
         public void serialize(LatePaxosInstanceReplyMessage m, ByteBuf out) {
             out.writeInt(m.operations.size());
-            for(Operation operation : m.operations)
+            for (Operation operation : m.operations)
                 operation.serialize(out);
         }
 
@@ -33,8 +33,8 @@ public class LatePaxosInstanceReplyMessage extends ProtocolMessage implements Se
             int size = in.readInt();
             List<Operation> operations = new ArrayList<>(size);
 
-            for(int i = 0 ; i < size; i++){
-                operations.add(i,Operation.deserialize(in));
+            for (int i = 0; i < size; i++) {
+                operations.add(i, Operation.deserialize(in));
             }
 
             return new LatePaxosInstanceReplyMessage(operations);
@@ -42,7 +42,11 @@ public class LatePaxosInstanceReplyMessage extends ProtocolMessage implements Se
 
         @Override
         public int serializedSize(LatePaxosInstanceReplyMessage m) {
-            return m.operations.get(0).serializedSize() + Integer.BYTES;
+            int size = Integer.BYTES;
+            for (Operation op : m.operations) {
+                size += op.serializedSize();
+            }
+            return size;
         }
     };
 

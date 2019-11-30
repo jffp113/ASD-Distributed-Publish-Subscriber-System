@@ -5,7 +5,7 @@ import network.Host;
 
 public class LeaderNotification extends ProtocolNotification {
 
-    public static final short NOTIFICATION_ID = 2;
+    public static final short NOTIFICATION_ID = 5;
     public static final String NOTIFICATION_NAME = "LeaderNotification";
 
     private Host leader;

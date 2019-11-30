@@ -4,8 +4,6 @@ import babel.protocol.event.ProtocolMessage;
 import io.netty.buffer.ByteBuf;
 import network.ISerializer;
 
-import java.net.UnknownHostException;
-
 public class LatePaxosInstanceRequestMessage extends ProtocolMessage {
 
     public final static short MSG_CODE = 10223;
@@ -18,11 +16,10 @@ public class LatePaxosInstanceRequestMessage extends ProtocolMessage {
         public void serialize(LatePaxosInstanceRequestMessage m, ByteBuf out) {
             out.writeInt(m.start);
             out.writeInt(m.end);
-
         }
 
         @Override
-        public LatePaxosInstanceRequestMessage deserialize(ByteBuf in) throws UnknownHostException {
+        public LatePaxosInstanceRequestMessage deserialize(ByteBuf in) {
             int start = in.readInt();
             int end = in.readInt();
             return new LatePaxosInstanceRequestMessage(start,end);
