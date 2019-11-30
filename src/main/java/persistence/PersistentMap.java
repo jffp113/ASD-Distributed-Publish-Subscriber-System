@@ -1,28 +1,32 @@
 package persistence;
 
 
+import protocols.multipaxos.Operation;
+
 import java.io.*;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-public class PersistentMap<K extends Serializable> {
+public class PersistentMap<K extends Serializable, V extends Serializable> {
 
     private static final String PATH = "map/";
     private static int IN_MEMORY = 10;
 
-    BlockingQueue<MyEntry<K, String>> vBlockingQueue;
+    BlockingQueue<MyEntry<K, V>> vBlockingQueue;
     private Map<K, File> mapFiles;
+    private Map<K,Boolean> isFirstWrite;
     private Map<K, Integer> currentSeq;
     private ObjectOutputStream out;
     private String id;
-    private Map<K, Queue<String>> map;
+    private Map<K, Queue<V>> map;
 
     public PersistentMap(String id) {
         this.map = new HashMap<>(64);
         this.mapFiles = new HashMap<>(64);
         this.currentSeq = new HashMap<>(64);
+        this.isFirstWrite = new HashMap<>();
         vBlockingQueue = new LinkedBlockingQueue();
         this.id = id;
 
@@ -38,14 +42,6 @@ public class PersistentMap<K extends Serializable> {
         }).start();
     }
 
-    public PersistentMap(String id, HashMap<K, byte[]> state) throws Exception {
-        this(id);
-        loadState(state);
-    }
-
-    private void loadState(HashMap<K, byte[]> state) {
-
-    }
 
     public Map<K, byte[]> getState() throws IOException {
         Map<K, byte[]> result = new HashMap<>(map.size());
@@ -55,22 +51,30 @@ public class PersistentMap<K extends Serializable> {
         return result;
     }
 
-    private void writeToFile(MyEntry<K, String> toWrite) throws Exception {
+    private void writeToFile(MyEntry<K, V> toWrite) throws Exception {
         File f = mapFiles.get(toWrite.getKey());
-        BufferedWriter writer = new BufferedWriter(
-                new FileWriter(f, true));
-        writer.write(toWrite.getValue());
-        writer.newLine();
-        writer.flush();
+        ObjectOutputStream objectOutputStream  = new ObjectOutputStream(
+                new FileOutputStream(f));
+
+        if(isFirstWrite.getOrDefault(toWrite.getKey(),true)){
+            isFirstWrite.put(toWrite.getKey(),false);
+        }else{
+            objectOutputStream = new AppendingObjectOutputStream(objectOutputStream);
+
+        }
+
+        objectOutputStream.writeObject(toWrite.getValue());
+        objectOutputStream.flush();
+        objectOutputStream.close();
     }
 
-    public List<String> get(K topic, int offset, int max) throws Exception {
-        List<String> result = new LinkedList<>();
+    public List<V> get(K topic, int offset, int max) throws Exception {
+        List<V> result = new LinkedList<>();
         Integer current = currentSeq.get(topic);
 
         if (current - IN_MEMORY <= offset) {
             int pos = current - map.get(topic).size() + 1;
-            for (String value : map.get(topic)) {
+            for (V value : map.get(topic)) {
                 if (pos >= offset) {
                     if (pos <= max)
                         result.add(value);
@@ -79,10 +83,11 @@ public class PersistentMap<K extends Serializable> {
                 pos++;
             }
         } else {
-            BufferedReader reader = new BufferedReader(new FileReader(mapFiles.get(topic)));
+            ObjectInputStream input = new ObjectInputStream(new FileInputStream(mapFiles.get(topic)))
+                    ;
             int i = 1;
-            String o;
-            while ((o = reader.readLine()) != null) {
+            V o;
+            while ((o = (V)input.readObject()) != null) {
                 if (offset <= i) {
                     if (i > max)
                         break;
@@ -96,12 +101,12 @@ public class PersistentMap<K extends Serializable> {
         return result;
     }
 
-    public List<String> get(K topic, int offset) throws Exception {
+    public List<V> get(K topic, int offset) throws Exception {
         return get(topic, offset, currentSeq.get(topic));
     }
 
-    public int put(K key, String value) {
-        Queue<String> list = map.get(key);
+    public int put(K key, V value) {
+        Queue<V> list = map.get(key);
         Integer seq = currentSeq.get(key);
         if (list == null) {
             list = new LinkedList<>();
@@ -142,6 +147,7 @@ public class PersistentMap<K extends Serializable> {
         for(Map.Entry<K,byte[]> entry: state.entrySet()){
             createNewFile(PATH + id +entry.getKey(), entry.getKey());
             writeToFile(entry.getValue(),(String)entry.getKey());
+            isFirstWrite.put(entry.getKey(),false);
         }
     }
 

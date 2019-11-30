@@ -2,10 +2,11 @@ package protocols.multipaxos;
 
 import io.netty.buffer.ByteBuf;
 
+import java.io.Serializable;
 import java.util.LinkedList;
 import java.util.List;
 
-public class WriteContent implements Content {
+public class WriteContent implements Content , Serializable {
 
     private String topic;
     private List<String> messages;
