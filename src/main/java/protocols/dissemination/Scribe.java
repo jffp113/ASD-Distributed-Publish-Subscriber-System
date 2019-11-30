@@ -39,7 +39,8 @@ public class Scribe extends GenericProtocol implements INotificationConsumer, IN
     private Set<String> myTopics;
 
     private final ProtocolTimerHandler uponRecycleSubscribes = (ProtocolTimer) -> {
-        for (String topic : downTopicTree.keySet()) {
+        Set<String> topics = downTopicTree.keySet();
+        for (String topic : topics) {
             Set<HostSubscription> downTopicBranch = downTopicTree.getOrDefault(topic, new HashSet<>());
             for (HostSubscription leaf : downTopicBranch) {
                 Host host = leaf.getHost();
